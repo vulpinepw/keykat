@@ -1,6 +1,6 @@
 <p align="center">
   <img src="assets/brand/keycat-1024.png" width="128" alt="Keycat logo">
-</p>
+</p> 
 
 <h1 align="center">Keycat</h1>
 
