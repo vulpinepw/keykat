@@ -36,6 +36,8 @@ type Options struct {
 	NoHub      bool
 	Marionette bool
 	Links      []string
+	Host       Host
+	Engine     Engine
 }
 
 type App struct {
@@ -58,7 +60,8 @@ type App struct {
 	returnPending atomic.Bool
 	quitting      atomic.Bool
 
-	links linkQueue
+	links  linkQueue
+	hosted hosted
 
 	server  *http.Server
 	baseURL string
@@ -96,11 +99,18 @@ func New(opts Options, layer, hubFS fs.FS) (*App, error) {
 	}
 	a.Hub = &Hub{app: a}
 	a.Updater = &Updater{app: a}
+	start, ready := session.FirefoxStarter(a.Core), func() error { _, err := a.Core(); return err }
+	var focus func(string) bool
+	if opts.Host != nil {
+		start, ready, focus = a.startInHost, a.hostReady, opts.Host.FocusBrowser
+	}
 	a.Sessions = session.New(session.Config{
 		Store:       store,
 		Keychain:    kc,
 		SessionsDir: paths.Sessions,
-		Core:        a.Core,
+		Start:       start,
+		Ready:       ready,
+		Focus:       focus,
 		APIURL:      a.BaseURL,
 		Bus:         a.Bus,
 		Log:         logger,
@@ -380,7 +390,7 @@ func (a *App) returnToHub(st session.Status) {
 }
 
 func (a *App) checkExit() {
-	if a.Options.NoHub || a.Hub.Running() {
+	if a.Options.NoHub || a.Options.Host != nil || a.Hub.Running() {
 		return
 	}
 	time.Sleep(300 * time.Millisecond)

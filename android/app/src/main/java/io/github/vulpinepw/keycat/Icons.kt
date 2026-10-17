@@ -1,0 +1,57 @@
+package io.github.vulpinepw.keycat
+
+object Icons {
+    private val markup = mapOf(
+        "lock" to "<rect x=\"5\" y=\"11\" width=\"14\" height=\"10\" rx=\"2\"/><path d=\"M8 11V7a4 4 0 0 1 8 0v4\"/>",
+        "unlock" to "<rect x=\"5\" y=\"11\" width=\"14\" height=\"10\" rx=\"2\"/><path d=\"M8 11V7a4 4 0 0 1 7.6-1.8\"/>",
+        "insecure" to "<rect x=\"5\" y=\"11\" width=\"14\" height=\"10\" rx=\"2\"/><path d=\"M8 11V7a4 4 0 0 1 7.6-1.8M3.5 3.5l17 17\"/>",
+        "plus" to "<path d=\"M12 5v14M5 12h14\"/>",
+        "more" to "<circle cx=\"12\" cy=\"5\" r=\"1.5\" fill=\"currentColor\"/><circle cx=\"12\" cy=\"12\" r=\"1.5\" fill=\"currentColor\"/><circle cx=\"12\" cy=\"19\" r=\"1.5\" fill=\"currentColor\"/>",
+        "settings" to "<path d=\"M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1\"/><circle cx=\"15\" cy=\"6\" r=\"2\"/><circle cx=\"9\" cy=\"12\" r=\"2\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/>",
+        "x" to "<path d=\"M6 6l12 12M18 6 6 18\"/>",
+        "check" to "<path d=\"M5 12.5l4.5 4.5L19 7.5\"/>",
+        "alert" to "<path d=\"M12 3.5 2.8 19.5h18.4L12 3.5Z\"/><path d=\"M12 10v4.5M12 17.2v.01\"/>",
+        "trash" to "<path d=\"M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3\"/>",
+        "edit" to "<path d=\"M4 20h4L19.5 8.5a2.1 2.1 0 0 0-4-4L4 16v4Z\"/><path d=\"M14 6l4 4\"/>",
+        "download" to "<path d=\"M12 4v11M7 10l5 5 5-5M5 20h14\"/>",
+        "copy" to "<rect x=\"9\" y=\"9\" width=\"11\" height=\"11\" rx=\"2\"/><path d=\"M5 15V6a2 2 0 0 1 2-2h8\"/>",
+        "shield" to "<path d=\"M12 3 4.5 6v6c0 4.8 3.2 8 7.5 9 4.3-1 7.5-4.2 7.5-9V6L12 3Z\"/>",
+        "shieldCheck" to "<path d=\"M12 3 4.5 6v6c0 4.8 3.2 8 7.5 9 4.3-1 7.5-4.2 7.5-9V6L12 3Z\"/><path d=\"M8.7 12.2l2.3 2.3 4.3-4.6\"/>",
+        "key" to "<circle cx=\"8\" cy=\"15\" r=\"4\"/><path d=\"M10.9 12.1 19 4M15.5 7.5l2.5 2.5M13.5 9.5l2 2\"/>",
+        "globe" to "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M3 12h18M12 3c2.4 2.5 3.7 5.5 3.7 9s-1.3 6.5-3.7 9c-2.4-2.5-3.7-5.5-3.7-9S9.6 5.5 12 3Z\"/>",
+        "history" to "<path d=\"M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.5M3.5 4v4.5H8\"/><path d=\"M12 7.5V12l3 2\"/>",
+        "info" to "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 11v5M12 8v.01\"/>",
+        "chevronRight" to "<path d=\"M9 6l6 6-6 6\"/>",
+        "chevronUp" to "<path d=\"M6 15l6-6 6 6\"/>",
+        "chevronDown" to "<path d=\"M6 9l6 6 6-6\"/>",
+        "power" to "<path d=\"M12 3v8M6.3 6.3a8 8 0 1 0 11.4 0\"/>",
+        "external" to "<path d=\"M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5\"/>",
+        "user" to "<circle cx=\"12\" cy=\"8\" r=\"4\"/><path d=\"M4.5 20.5a7.5 7.5 0 0 1 15 0\"/>",
+        "layers" to "<path d=\"M12 3 3 8l9 5 9-5-9-5Z\"/><path d=\"M3 13l9 5 9-5M3 18l9 5 9-5\"/>",
+        "monitor" to "<rect x=\"3\" y=\"4\" width=\"18\" height=\"12\" rx=\"2\"/><path d=\"M8 20h8M12 16v4\"/>",
+        "back" to "<path d=\"M19 12H5M11 6l-6 6 6 6\"/>",
+        "forward" to "<path d=\"M5 12h14M13 6l6 6-6 6\"/>",
+        "reload" to "<path d=\"M19.5 12a7.5 7.5 0 1 1-2.4-5.5l2.4 2.2M19.5 4.5v4.2h-4.2\"/>",
+        "share" to "<circle cx=\"17.5\" cy=\"5.5\" r=\"2.5\"/><circle cx=\"6.5\" cy=\"12\" r=\"2.5\"/><circle cx=\"17.5\" cy=\"18.5\" r=\"2.5\"/><path d=\"M8.7 10.7l6.6-3.9M8.7 13.3l6.6 3.9\"/>",
+        "search" to "<circle cx=\"11\" cy=\"11\" r=\"6.5\"/><path d=\"M16 16l4.5 4.5\"/>",
+        "star" to "<path d=\"M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.8l-5.2 2.8 1-5.8-4.3-4.1 5.9-.8Z\"/>",
+        "starFilled" to "<path fill=\"currentColor\" d=\"M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.8l-5.2 2.8 1-5.8-4.3-4.1 5.9-.8Z\"/>",
+        "bookmarks" to "<path d=\"M6.5 4h11a1 1 0 0 1 1 1v15l-6.5-4.2L5.5 20V5a1 1 0 0 1 1-1Z\"/>",
+        "find" to "<path d=\"M4 6h10M4 12h5M4 18h7\"/><circle cx=\"16\" cy=\"14\" r=\"3.5\"/><path d=\"M18.6 16.6 21 19\"/>",
+        "puzzle" to "<path d=\"M10 4.5a2 2 0 0 1 4 0V6h4a1 1 0 0 1 1 1v4h-1.5a2 2 0 0 0 0 4H19v4a1 1 0 0 1-1 1h-4v-1.5a2 2 0 0 0-4 0V20H6a1 1 0 0 1-1-1v-4h1.5a2 2 0 0 0 0-4H5V7a1 1 0 0 1 1-1h4Z\"/>",
+        "mask" to "<path d=\"M3 9c2.4-1.4 5.6-2.2 9-2.2s6.6.8 9 2.2c0 4.8-2.2 8-5.2 8-1.9 0-2.6-1.8-3.8-1.8s-1.9 1.8-3.8 1.8C5.2 17 3 13.8 3 9Z\"/><path d=\"M7.4 11.2h2.8M13.8 11.2h2.8\"/>",
+        "print" to "<path d=\"M7 9V4h10v5M7 17H5a1 1 0 0 1-1-1v-5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v5a1 1 0 0 1-1 1h-2\"/><rect x=\"7\" y=\"14\" width=\"10\" height=\"6\" rx=\"1\"/>",
+        "home" to "<path d=\"M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1Z\"/>",
+        "link" to "<path d=\"M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1\"/>",
+        "image" to "<rect x=\"3.5\" y=\"5\" width=\"17\" height=\"14\" rx=\"2\"/><circle cx=\"9\" cy=\"10\" r=\"1.6\"/><path d=\"M20.5 16l-5-5-8 8\"/>",
+        "import" to "<path d=\"M12 15V4M7 9l5-5 5 5M5 20h14\"/>",
+        "file" to "<path d=\"M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z\"/><path d=\"M14 3v5h5\"/>",
+        "tabs" to "<rect x=\"4\" y=\"4\" width=\"16\" height=\"16\" rx=\"4\"/>",
+        "moon" to "<path d=\"M20 14.6A8.2 8.2 0 1 1 9.4 4a6.6 6.6 0 0 0 10.6 10.6Z\"/>",
+        "sun" to "<circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4\"/>",
+    )
+
+    private val cache = HashMap<String, Svg>()
+
+    fun svg(name: String): Svg = cache.getOrPut(name) { Svg(markup[name] ?: markup.getValue("info")) }
+}

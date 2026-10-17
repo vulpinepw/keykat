@@ -8,9 +8,11 @@
   <a href="https://github.com/vulpinepw/keykat/releases/latest/download/KeycatSetup.exe"><b>Download for Windows</b></a>
   &nbsp;&nbsp;·&nbsp;&nbsp;
   <a href="https://github.com/vulpinepw/keykat/releases/latest/download/keycat-linux-x86_64.tar.gz"><b>Download for Linux</b></a>
+  &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="https://github.com/vulpinepw/keykat/releases/latest/download/keycat-android.apk"><b>Download for Android</b></a>
 </p>
 
-A browser for Windows and Linux where every profile is its own encrypted vault.
+A browser for Windows, Linux and Android where every profile is its own encrypted vault.
 
 ![The Keycat profiles window](docs/screenshots/profiles.png)
 
@@ -20,12 +22,13 @@ So your banking profile, your work profile and your personal one never see each 
 
 Underneath it runs the Firefox engine, so websites work the way they do in Firefox. Keycat adds the vaults, per profile privacy settings, a password manager that lives inside each vault, and it takes the Firefox branding, accounts, telemetry and promotions out.
 
-It runs on Windows 10 and 11 (64-bit) and on 64-bit Linux desktops. Older versions and the checksums of every download are on the [releases page](../../releases).
+It runs on Windows 10 and 11 (64-bit), on 64-bit Linux desktops and on Android 8 or newer phones (64-bit ARM). Older versions and the checksums of every download are on the [releases page](../../releases).
 
 ## Contents
 
 - [Using it](#using-it)
 - [Installing and updating](#installing-and-updating)
+- [On a phone](#on-a-phone)
 - [How it works](#how-it-works)
 - [Encryption](#encryption)
 - [Building it yourself](#building-it-yourself)
@@ -135,6 +138,36 @@ To remove Keycat, run `~/.local/share/keycat/uninstall.sh`. It asks before delet
 
 You can also skip the install and start `./keycat` right from the unpacked folder. With an empty `portable` file next to it, everything stays in a `Data` folder there.
 
+### Android
+
+Download `keycat-android.apk` on the phone and open it. Android asks once whether your browser may install apps; allow it, install Keycat, and you can turn that permission off again afterwards. To check the file against the hash in the release notes before installing, on a computer:
+
+```sh
+sha256sum keycat-android.apk
+```
+
+Installing a newer `keycat-android.apk` over the old one updates Keycat and keeps your profiles. Lock your open profile first: Android stops the app while it updates it, and a profile that was open comes back as one to secure (with its password) instead of locked. Uninstalling the app deletes every profile on the phone with it.
+
+## On a phone
+
+<p align="center">
+  <img src="docs/screenshots/android-profiles.png" width="32%" alt="Keycat's profiles screen on a phone">
+  <img src="docs/screenshots/android-browser.png" width="32%" alt="A Keycat profile on a phone">
+  <img src="docs/screenshots/android-panel.png" width="32%" alt="The Keycat panel of a profile on a phone">
+</p>
+
+The Android app is the same Keycat: the same profiles screen, the same vaults and encryption, Keycat Passwords, fake identities, the privacy presets and every single option, the system shown to sites, fingerprinting protection, uBlock Origin and the link chooser for other apps. The engine is GeckoView, the Firefox engine that Firefox for Android is built on, and it comes with the app.
+
+A few things work the way a phone needs them to:
+
+- One profile is open at a time. The engine runs once per app on Android, so opening another profile asks you to lock the open one first.
+- While a profile is open, a notification says so and has a Lock button. Closing the browser from the recent apps list locks the profile too, and so does Lock in the cat button's panel.
+- The browser has its own toolbar: the cat button with the protection summary, quick settings, theme and Lock, the address bar, tabs (private tabs and container tabs too) and a menu with bookmarks, history, downloads, find in page, desktop site, add-ons, print and import.
+- Importing from other browsers works with the files they export, as Android keeps every app's data private: passwords from a CSV file and bookmarks from an HTML file.
+- To make Keycat your default browser, choose Make default in Keycat's settings; Android asks you to confirm.
+- Passkeys go through Android's own service for them, which needs Google Play services on the phone.
+- Pages in private tabs can not be screenshotted, and on Android 13 and newer the recent apps list shows no preview of the browser, so page contents do not end up in the system's screenshots of apps.
+
 ## How it works
 
 ![How the parts of Keycat fit together](docs/diagrams/how-it-works.svg)
@@ -200,6 +233,15 @@ For Linux, Keycat is put together with Firefox for Linux as Mozilla publishes it
 
 Either way you get `dist/linux/keycat`, ready to run (on Linux), and `dist/keycat-linux-x86_64.tar.gz`.
 
+The Android app needs a JDK 17 or newer (`JAVA_HOME`) and the Android SDK with its NDK (`ANDROID_HOME`). The build binds the Go core with gomobile and downloads Gradle once, checked against its published hash:
+
+```sh
+./build.sh --android --signing keycat-signing.properties        # on Linux
+.\build.ps1 -Android -AndroidSigning keycat-signing.properties   # on Windows
+```
+
+The properties file names your signing key (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`). Without it you get `dist/keycat-android-unsigned.apk`, which has to be signed before Android installs it.
+
 Tests:
 
 ```sh
@@ -226,6 +268,8 @@ The code, roughly:
 | `internal/app` | the local API, the profiles window, engine updates |
 | `internal/firefox` | finding and launching the engine, installing the layer |
 | `internal/platform` | what differs between Windows and Linux: dialogs, windows, one Keycat at a time |
+| `android/core` | the Keycat core for the Android app, bound with gomobile |
+| `android/app` | the Android app: the profiles screen and the browser on GeckoView |
 | `browser/` | everything added to the engine |
 | `hub/` | the Keycat pages |
 | `tools/` | icon renderer, release packers, comment stripper |
@@ -238,7 +282,8 @@ The code, roughly:
 - Deleted files can not be reliably overwritten on an SSD. If that matters to you, use full disk encryption as well (BitLocker on Windows, LUKS on Linux).
 - Task Manager lists the browser processes as "Firefox", and `ps` on Linux as `firefox`. Changing that would mean modifying the engine's program files, which breaks protected video on streaming sites.
 - Websites see a normal Firefox user agent. That is on purpose: it keeps sites working and you look like everyone else.
-- The Linux package is for 64-bit Intel and AMD processors (x86-64).
+- The Linux package is for 64-bit Intel and AMD processors (x86-64), and the Android app for 64-bit ARM phones.
+- On Android, the decrypted copy of an open profile is in the app's private storage, where other apps can not read it, and Android's own storage encryption covers the phone when it is off.
 
 ## Credits and license
 

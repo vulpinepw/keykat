@@ -9,7 +9,6 @@ import (
 	"io/fs"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -65,7 +64,9 @@ type Config struct {
 	Store       *profile.Store
 	Keychain    *keychain.Service
 	SessionsDir string
-	Core        func() (*firefox.Core, error)
+	Start       StartFunc
+	Ready       func() error
+	Focus       func(id string) bool
 	APIURL      func() string
 	Bus         *events.Bus
 	Log         *log.Logger
@@ -80,7 +81,7 @@ type session struct {
 	dir     string
 	mk      *vault.SecretKey
 	token   string
-	cmd     *exec.Cmd
+	browser Browser
 	pid     int
 	cmds    chan Command
 	exited  chan struct{}
@@ -333,11 +334,12 @@ func (m *Manager) restoreStatus(id string, prev Status) {
 
 func (m *Manager) start(p *profile.Profile, mk *vault.SecretKey, prev Status) error {
 	id := p.ID
-	core, err := m.cfg.Core()
-	if err != nil {
-		mk.Destroy()
-		m.restoreStatus(id, prev)
-		return err
+	if m.cfg.Ready != nil {
+		if err := m.cfg.Ready(); err != nil {
+			mk.Destroy()
+			m.restoreStatus(id, prev)
+			return err
+		}
 	}
 	dir, notice, reused, err := m.prepareDir(p, mk)
 	if err != nil {
@@ -359,7 +361,7 @@ func (m *Manager) start(p *profile.Profile, mk *vault.SecretKey, prev Status) er
 
 	m.setStatus(id, StateUnlocking, "launch", 1, "", notice)
 	token := randomToken()
-	cmd, err := core.Launch(firefox.LaunchOptions{
+	browser, err := m.cfg.Start(firefox.LaunchOptions{
 		ProfileDir: dir,
 		Headless:   m.cfg.Headless,
 		Marionette: m.cfg.Marionette,
@@ -378,8 +380,8 @@ func (m *Manager) start(p *profile.Profile, mk *vault.SecretKey, prev Status) er
 	}
 
 	s := &session{
-		id: id, mode: p.Security.Mode, dir: dir, mk: mk, token: token, cmd: cmd,
-		pid: cmd.Process.Pid, cmds: make(chan Command, 8), exited: make(chan struct{}), started: time.Now(),
+		id: id, mode: p.Security.Mode, dir: dir, mk: mk, token: token, browser: browser,
+		pid: browser.Pid(), cmds: make(chan Command, 8), exited: make(chan struct{}), started: time.Now(),
 	}
 	m.mu.Lock()
 	m.sessions[id] = s
@@ -511,7 +513,7 @@ func writeProfileFiles(dir string, p *profile.Profile) error {
 
 func (m *Manager) supervise(s *session) {
 	defer m.wg.Done()
-	_ = s.cmd.Wait()
+	_ = s.browser.Wait()
 	firefox.WaitProfileReleased(s.dir, nil)
 	close(s.exited)
 	m.logf("profile %s: Firefox exited after %s", s.id, time.Since(s.started).Round(time.Second))
@@ -533,7 +535,7 @@ func (m *Manager) finish(s *session) {
 			m.logf("profile %s: sealing failed: %v", id, err)
 			m.mu.Lock()
 			delete(m.byToken, s.token)
-			s.cmd = nil
+			s.browser = nil
 			m.mu.Unlock()
 			m.setStatus(id, StateError, "", 0,
 				"Keycat could not encrypt this profile: "+err.Error()+". Your data is still on disk and the previous vault is kept; retry when the problem is fixed.", "")
@@ -640,7 +642,7 @@ func (m *Manager) Lock(id string) error {
 	m.mu.Lock()
 	s := m.sessions[id]
 	m.mu.Unlock()
-	if s == nil || s.cmd == nil {
+	if s == nil || s.browser == nil {
 		return ErrNotRunning
 	}
 	select {
@@ -648,6 +650,12 @@ func (m *Manager) Lock(id string) error {
 	default:
 	}
 	m.setStatus(id, StateClosing, "", 0, "", "")
+	m.mu.Lock()
+	shown := s.pid != 0
+	m.mu.Unlock()
+	if !shown {
+		_ = s.browser.Kill()
+	}
 	go func() {
 		select {
 		case <-s.exited:
@@ -665,22 +673,22 @@ func (m *Manager) ForceClose(id string) error {
 	m.mu.Lock()
 	s := m.sessions[id]
 	m.mu.Unlock()
-	if s == nil || s.cmd == nil {
+	if s == nil || s.browser == nil {
 		return ErrNotRunning
 	}
-	if s.pid != 0 && s.pid != s.cmd.Process.Pid {
+	if s.pid != 0 && s.pid != s.browser.Pid() {
 		if proc, err := os.FindProcess(s.pid); err == nil {
 			_ = proc.Kill()
 		}
 	}
-	return s.cmd.Process.Kill()
+	return s.browser.Kill()
 }
 
 func (m *Manager) RetrySeal(id string) error {
 	m.mu.Lock()
 	s := m.sessions[id]
 	m.mu.Unlock()
-	if s == nil || s.cmd != nil || m.Status(id).State != StateError {
+	if s == nil || s.browser != nil || m.Status(id).State != StateError {
 		return ErrBusy
 	}
 	if err := m.claim(id); err != nil {
@@ -739,6 +747,9 @@ func (m *Manager) Focus(id string) {
 	if s == nil || s.pid == 0 {
 		return
 	}
+	if m.cfg.Focus != nil && m.cfg.Focus(id) {
+		return
+	}
 	if !platform.RaisesWindows {
 		m.Send(id, Command{Type: "focus"})
 		return
@@ -759,7 +770,7 @@ func (m *Manager) ApplySettings(p *profile.Profile) bool {
 	m.mu.Lock()
 	s := m.sessions[p.ID]
 	m.mu.Unlock()
-	if s == nil || s.cmd == nil {
+	if s == nil || s.browser == nil {
 		return false
 	}
 	if err := writeProfileFiles(s.dir, p); err != nil {
@@ -841,7 +852,7 @@ func (m *Manager) Shutdown() {
 	m.mu.Lock()
 	var ids []string
 	for id, s := range m.sessions {
-		if s.cmd != nil {
+		if s.browser != nil {
 			ids = append(ids, id)
 		}
 	}

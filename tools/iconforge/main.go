@@ -291,7 +291,11 @@ func ico(sizes []int, tile bool) []byte {
 }
 
 func letterbox(w, h, glyph int) *image.NRGBA {
-	src := render(glyph, false)
+	return letterboxColors(w, h, glyph, headTop, headBottom)
+}
+
+func letterboxColors(w, h, glyph int, top, bottom color.NRGBA) *image.NRGBA {
+	src := renderColors(glyph, false, top, bottom)
 	img := image.NewNRGBA(image.Rect(0, 0, w, h))
 	ox, oy := (w-glyph)/2, (h-glyph)/2
 	for y := 0; y < glyph; y++ {
@@ -343,6 +347,16 @@ func main() {
 		writeFile(filepath.Join(visual, fmt.Sprintf("VisualElements_%d.png", s)), encodePNG(render(s, true)))
 		writeFile(filepath.Join(visual, fmt.Sprintf("PrivateBrowsing_%d.png", s)), encodePNG(render(s, true)))
 	}
+
+	res := filepath.Join(root, "android", "app", "src", "main", "res")
+	white := color.NRGBA{0xFF, 0xFF, 0xFF, 0xFF}
+	for dpi, k := range map[string]float64{"mdpi": 1, "hdpi": 1.5, "xhdpi": 2, "xxhdpi": 3, "xxxhdpi": 4} {
+		canvas, glyph := int(108*k), int(58*k)
+		writeFile(filepath.Join(res, "mipmap-"+dpi, "ic_launcher_foreground.png"), encodePNG(letterbox(canvas, canvas, glyph)))
+		writeFile(filepath.Join(res, "mipmap-"+dpi, "ic_launcher_monochrome.png"), encodePNG(letterboxColors(canvas, canvas, glyph, white, white)))
+		writeFile(filepath.Join(res, "drawable-"+dpi, "ic_stat_keycat.png"), encodePNG(renderColors(int(24*k), false, white, white)))
+	}
+	writeFile(filepath.Join(res, "drawable-nodpi", "keycat_logo.png"), encodePNG(render(384, true)))
 
 	assets := filepath.Join(root, "assets", "brand")
 	writeFile(filepath.Join(assets, "keycat-1024.png"), encodePNG(render(1024, true)))

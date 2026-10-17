@@ -1,10 +1,12 @@
 param(
-  [string]$Version = "1.3.0",
+  [string]$Version = "1.4.0",
   [string]$FirefoxDir = "",
   [string]$LinuxFirefox = "",
+  [string]$AndroidSigning = "",
   [switch]$SkipTests,
   [switch]$Installer,
-  [switch]$Linux
+  [switch]$Linux,
+  [switch]$Android
 )
 
 $ErrorActionPreference = "Stop"
@@ -90,16 +92,23 @@ try {
       $env:GOOS = "linux"
       try { Invoke-Go vet ./... } finally { $env:GOOS = $null }
     }
+    if ($Android) {
+      Push-Location (Join-Path $root "android\core")
+      $env:GOOS = "android"; $env:GOARCH = "arm64"
+      try { Invoke-Go vet . } finally { $env:GOOS = $null; $env:GOARCH = $null; Pop-Location }
+    }
   }
 
   $src = $root
-  if ($Installer -or $Linux) {
+  if ($Installer -or $Linux -or $Android) {
     $src = Join-Path $root "build\stage"
     if (Test-Path $src) { Remove-Item -Recurse -Force $src }
     New-Item -ItemType Directory -Force $src | Out-Null
     foreach ($item in "go.mod", "go.sum", "assets.go", "cmd", "internal", "tools") {
       Copy-Item -Path (Join-Path $root $item) -Destination $src -Recurse
     }
+    New-Item -ItemType Directory -Force (Join-Path $src "android") | Out-Null
+    Copy-Item -Path (Join-Path $root "android\core") -Destination (Join-Path $src "android") -Recurse
     Invoke-Go run ./tools/strip -src hub -dst (Join-Path $src "hub")
     Invoke-Go run ./tools/strip -src browser -dst (Join-Path $src "browser")
     $node = Get-Command node -ErrorAction SilentlyContinue
@@ -115,37 +124,40 @@ try {
   Pop-Location
 }
 
-New-Item -ItemType Directory -Force $dist | Out-Null
-Push-Location $src
-try {
-  Invoke-Go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=$Version" -o (Join-Path $dist "Keycat.exe") ./cmd/keycat
-} finally {
-  Pop-Location
-}
-Write-Host "built: $(Join-Path $dist 'Keycat.exe')"
+$windows = -not $Android -or $Installer -or $Linux
+if ($windows) {
+  New-Item -ItemType Directory -Force $dist | Out-Null
+  Push-Location $src
+  try {
+    Invoke-Go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=$Version" -o (Join-Path $dist "Keycat.exe") ./cmd/keycat
+  } finally {
+    Pop-Location
+  }
+  Write-Host "built: $(Join-Path $dist 'Keycat.exe')"
 
-$scratch = Join-Path ([IO.Path]::GetTempPath()) ("keycat-build-" + [Guid]::NewGuid().ToString("N"))
-$env:KEYCAT_DATA_DIR = $scratch
-try {
-  $core = Join-Path $dist "core"
-  if (-not $FirefoxDir -and -not (Test-Path (Join-Path $core "firefox.exe"))) {
-    $FirefoxDir = Join-Path $env:ProgramFiles "Mozilla Firefox"
-  }
-  if ($FirefoxDir) {
-    if (-not (Test-Path (Join-Path $FirefoxDir "firefox.exe"))) {
-      throw "No Firefox found in '$FirefoxDir'. Install Firefox or pass -FirefoxDir."
+  $scratch = Join-Path ([IO.Path]::GetTempPath()) ("keycat-build-" + [Guid]::NewGuid().ToString("N"))
+  $env:KEYCAT_DATA_DIR = $scratch
+  try {
+    $core = Join-Path $dist "core"
+    if (-not $FirefoxDir -and -not (Test-Path (Join-Path $core "firefox.exe"))) {
+      $FirefoxDir = Join-Path $env:ProgramFiles "Mozilla Firefox"
     }
-    Write-Host "copying the Firefox engine from $FirefoxDir"
-    $proc = Start-Process -FilePath (Join-Path $dist "Keycat.exe") -ArgumentList "--no-hub", "--setup-core", "`"$FirefoxDir`"" -Wait -PassThru
-    if ($proc.ExitCode -ne 0) { throw "engine setup failed (exit code $($proc.ExitCode))" }
-  } else {
-    $proc = Start-Process -FilePath (Join-Path $dist "Keycat.exe") -ArgumentList "--no-hub", "--apply-layer" -Wait -PassThru
-    if ($proc.ExitCode -ne 0) { throw "installing the Keycat layer failed (exit code $($proc.ExitCode))" }
+    if ($FirefoxDir) {
+      if (-not (Test-Path (Join-Path $FirefoxDir "firefox.exe"))) {
+        throw "No Firefox found in '$FirefoxDir'. Install Firefox or pass -FirefoxDir."
+      }
+      Write-Host "copying the Firefox engine from $FirefoxDir"
+      $proc = Start-Process -FilePath (Join-Path $dist "Keycat.exe") -ArgumentList "--no-hub", "--setup-core", "`"$FirefoxDir`"" -Wait -PassThru
+      if ($proc.ExitCode -ne 0) { throw "engine setup failed (exit code $($proc.ExitCode))" }
+    } else {
+      $proc = Start-Process -FilePath (Join-Path $dist "Keycat.exe") -ArgumentList "--no-hub", "--apply-layer" -Wait -PassThru
+      if ($proc.ExitCode -ne 0) { throw "installing the Keycat layer failed (exit code $($proc.ExitCode))" }
+    }
+    Write-Host "engine ready: $core"
+  } finally {
+    $env:KEYCAT_DATA_DIR = $null
+    if (Test-Path $scratch) { Remove-Item -Recurse -Force $scratch -ErrorAction SilentlyContinue }
   }
-  Write-Host "engine ready: $core"
-} finally {
-  $env:KEYCAT_DATA_DIR = $null
-  if (Test-Path $scratch) { Remove-Item -Recurse -Force $scratch -ErrorAction SilentlyContinue }
 }
 
 if ($Installer) {
@@ -189,4 +201,59 @@ if ($Linux) {
   }
   $mb = [Math]::Round((Get-Item $tarball).Length / 1MB, 1)
   Write-Host "linux package: $tarball ($mb MB)"
+}
+
+if ($Android) {
+  $sdk = $env:ANDROID_HOME
+  if (-not $sdk) { $sdk = Join-Path $env:LOCALAPPDATA "Android\Sdk" }
+  if (-not (Test-Path (Join-Path $sdk "platforms"))) { throw "No Android SDK in '$sdk'. Install it and set ANDROID_HOME." }
+  $ndk = Get-ChildItem (Join-Path $sdk "ndk") -Directory -ErrorAction SilentlyContinue | Sort-Object { [version]$_.Name } | Select-Object -Last 1
+  if (-not $ndk) { throw "No NDK in '$sdk\ndk'. Install one with the SDK manager." }
+  $javac = if ($env:JAVA_HOME) { Join-Path $env:JAVA_HOME "bin\javac.exe" } else { (Get-Command javac -ErrorAction SilentlyContinue).Source }
+  if (-not $javac -or -not (Test-Path $javac)) { throw "No JDK found. Install a JDK 17 or newer and set JAVA_HOME." }
+  if (-not $env:JAVA_HOME) { $env:JAVA_HOME = Split-Path (Split-Path $javac) }
+  $env:ANDROID_HOME = $sdk
+  $env:ANDROID_NDK_HOME = $ndk.FullName
+  $env:PATH = (Split-Path $javac) + ";" + (Join-Path (go env GOPATH) "bin") + ";" + $env:PATH
+
+  Push-Location (Join-Path $src "android\core")
+  try {
+    Invoke-Go install golang.org/x/mobile/cmd/gomobile golang.org/x/mobile/cmd/gobind
+    $aar = Join-Path $root "android\app\libs\keycat-core.aar"
+    New-Item -ItemType Directory -Force (Split-Path $aar) | Out-Null
+    & gomobile bind -target=android/arm64 -androidapi 26 -javapkg io.github.vulpinepw.keycat -trimpath -ldflags "-s -w" -o $aar .
+    if ($LASTEXITCODE -ne 0) { throw "gomobile bind failed" }
+  } finally {
+    Pop-Location
+  }
+
+  $gradleVersion = "9.8.1"
+  $gradleSum = "dce76f55f8e251a3a1f130eb120f30b3d271de2b76c9b0729d316b5a1b6dc01f"
+  $gradleDir = Join-Path $root "build\gradle\gradle-$gradleVersion"
+  if (-not (Test-Path (Join-Path $gradleDir "bin\gradle.bat"))) {
+    $zip = Join-Path $root "build\gradle\gradle-$gradleVersion-bin.zip"
+    New-Item -ItemType Directory -Force (Split-Path $zip) | Out-Null
+    Invoke-WebRequest -UseBasicParsing "https://services.gradle.org/distributions/gradle-$gradleVersion-bin.zip" -OutFile $zip
+    if ((Get-FileHash $zip -Algorithm SHA256).Hash.ToLower() -ne $gradleSum) {
+      Remove-Item $zip
+      throw "the Gradle download does not match its checksum"
+    }
+    Expand-Archive $zip -DestinationPath (Split-Path $zip) -Force
+    Remove-Item $zip
+  }
+  $gradleArgs = @("--no-daemon", "--console=plain", "-p", (Join-Path $root "android"), "assembleRelease", "-PkeycatVersion=$Version", "-Pabi=arm64-v8a")
+  if ($AndroidSigning) {
+    if (-not (Test-Path $AndroidSigning)) { throw "No signing properties at '$AndroidSigning'" }
+    $gradleArgs += "-PkeycatSigning=$((Resolve-Path $AndroidSigning).Path)"
+  }
+  & (Join-Path $gradleDir "bin\gradle.bat") @gradleArgs
+  if ($LASTEXITCODE -ne 0) { throw "the Android build failed" }
+  $built = Get-ChildItem (Join-Path $root "android\app\build\outputs\apk\release") -Filter *.apk | Select-Object -First 1
+  $name = if ($AndroidSigning) { "keycat-android.apk" } else { "keycat-android-unsigned.apk" }
+  $apk = Join-Path $root "dist\$name"
+  New-Item -ItemType Directory -Force (Split-Path $apk) | Out-Null
+  Copy-Item $built.FullName $apk -Force
+  $mb = [Math]::Round((Get-Item $apk).Length / 1MB, 1)
+  Write-Host "android app: $apk ($mb MB)"
+  if (-not $AndroidSigning) { Write-Warning "the app is not signed; pass -AndroidSigning to sign it" }
 }

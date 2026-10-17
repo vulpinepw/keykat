@@ -2156,6 +2156,10 @@ h3 {
     min-width: 0;
   }
 
+  .toggle-row:has(> .seg) > .text {
+    flex-basis: 100%;
+  }
+
   .custom-crypto {
     grid-template-columns: 1fr;
   }

@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.0
+
+- Keycat runs on Android phones. The app has the same profiles screen, vaults and encryption, Keycat Passwords, fake identities, privacy settings, fingerprinting protection, system shown to sites, uBlock Origin and link chooser, and its browser runs on GeckoView, the Firefox engine for Android.
+- On Android one profile is open at a time. A notification shows the open profile with a Lock button, and closing the browser from the recent apps list locks it too.
+- The phone browser has the cat button with the protection summary, quick settings and theme, tabs with private and container tabs, bookmarks, history, downloads, find in page, desktop site, add-ons and printing.
+- On Android, passwords import from a CSV file and bookmarks from an HTML file.
+- Keycat can be the default browser on Android.
+- A recovery code made on the phone is shown before the new profile opens, so the browser never covers it.
+- Setting rows in the Keycat pages wrap on narrow windows.
+
 ## 1.3.0
 
 - Keycat can be your default browser. The installer registers it with Windows and `install.sh` with the Linux desktop; Make default in Keycat's settings does the rest.

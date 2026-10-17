@@ -172,14 +172,15 @@ func BuildPrefs(p *Profile) PrefSet {
 	set("browser.urlbar.suggest.searches", pv.SearchSuggestions)
 	set("browser.search.separatePrivateDefault", false)
 
-	firefoxPasswords := pv.Passwords == "firefox"
+	android := runtime.GOOS == "android"
+	firefoxPasswords := pv.Passwords == "firefox" || (android && pv.Passwords == "keycat")
 	set("signon.rememberSignons", firefoxPasswords)
 	set("signon.autofillForms", firefoxPasswords)
 	set("signon.generation.enabled", firefoxPasswords)
 	set("signon.formlessCapture.enabled", firefoxPasswords)
 	set("browser.contextual-password-manager.enabled", firefoxPasswords)
 	set("browser.formfill.enable", pv.FormAutofill && pv.History != "off")
-	set("extensions.formautofill.addresses.enabled", pv.FormAutofill)
+	set("extensions.formautofill.addresses.enabled", pv.FormAutofill || (android && pv.FakeIdentity != "off"))
 	set("extensions.formautofill.creditCards.enabled", pv.FormAutofill)
 
 	set("browser.safebrowsing.malware.enabled", pv.SafeBrowsing)

@@ -29,7 +29,7 @@ func newTestManager(t *testing.T) (*Manager, *profile.Store, string) {
 	m := New(Config{
 		Store:       store,
 		SessionsDir: sessions,
-		Core:        func() (*firefox.Core, error) { return nil, errors.New("no engine in tests") },
+		Start:       func(firefox.LaunchOptions) (Browser, error) { return nil, errors.New("no engine in tests") },
 		APIURL:      func() string { return "" },
 		Overwrite:   func() bool { return false },
 	})

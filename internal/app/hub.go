@@ -27,12 +27,19 @@ type Hub struct {
 }
 
 func (h *Hub) Running() bool {
+	if h.app.Options.Host != nil {
+		return true
+	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return h.cmd != nil
 }
 
 func (h *Hub) Show() error {
+	if host := h.app.Options.Host; host != nil {
+		host.ShowHub()
+		return nil
+	}
 	h.mu.Lock()
 	if h.cmd != nil && h.leaving {
 		exited := h.exited

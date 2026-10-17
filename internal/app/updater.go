@@ -35,6 +35,8 @@ type Updater struct {
 	info UpdateInfo
 }
 
+var errEngineInApp = errors.New("the browser engine is updated with the Keycat app")
+
 const versionsURL = "https://product-details.mozilla.org/1.0/firefox_versions.json"
 
 func (u *Updater) stagedDir() string { return u.app.Paths.CoreDir + ".new" }
@@ -43,7 +45,9 @@ func (u *Updater) Info() UpdateInfo {
 	u.mu.Lock()
 	info := u.info
 	u.mu.Unlock()
-	if c, err := u.app.Core(); err == nil {
+	if u.app.Options.Host != nil {
+		info.Current = u.app.Options.Engine.Version
+	} else if c, err := u.app.Core(); err == nil {
 		info.Current = c.Version
 	}
 	if info.Channel == "" {
@@ -70,6 +74,9 @@ func (u *Updater) CheckInBackground() {
 }
 
 func (u *Updater) Check() (UpdateInfo, error) {
+	if u.app.Options.Host != nil {
+		return u.Info(), errEngineInApp
+	}
 	channel := u.app.Settings.Get().UpdateChannel
 	latest, err := latestVersion(channel)
 	u.update(func(i *UpdateInfo) {
@@ -138,6 +145,9 @@ func compareVersions(a, b string) int {
 }
 
 func (u *Updater) Stage() error {
+	if u.app.Options.Host != nil {
+		return errEngineInApp
+	}
 	u.mu.Lock()
 	if u.info.Busy {
 		u.mu.Unlock()

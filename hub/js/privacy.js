@@ -1,3 +1,4 @@
+import { android } from "./api.js";
 import { h, icon, segmented, selectRow, switchRow } from "./dom.js";
 import { choiceCards, section } from "./views.js";
 
@@ -9,7 +10,9 @@ const PRESET_CARDS = [
 
 const userAgentHint = v => v.fingerprinting === "resist"
   ? "Resisting fingerprinting sends the standard Firefox user agent of this system instead"
-  : "What the browser tells sites about your system, in its user agent and to their scripts. It still says it is Firefox";
+  : android
+    ? "What the browser tells sites about your system. Another system makes sites show their computer version. It still says it is Firefox"
+    : "What the browser tells sites about your system, in its user agent and to their scripts. It still says it is Firefox";
 
 export function privacyEditor({ value, presets, mode, onChange }) {
   let v = structuredClone(value);
@@ -68,7 +71,7 @@ export function privacyEditor({ value, presets, mode, onChange }) {
       hint: userAgentHint(v),
       value: v.userAgent,
       onchange: val => set("userAgent", val),
-      options: [["real", "The real one"], ["windows", "Windows"], ["macos", "macOS"], ["linux", "Linux"], ["random", "A random one each time the profile opens"]],
+      options: [["real", android ? "The real one (Android)" : "The real one"], ["windows", "Windows"], ["macos", "macOS"], ["linux", "Linux"], ["random", "A random one each time the profile opens"]],
     });
     dynamic.dnsProvider = selectRow({
       title: "DNS provider",
@@ -94,7 +97,9 @@ export function privacyEditor({ value, presets, mode, onChange }) {
       onchange: on => setProxy("remoteDns", on),
     });
     dynamic.torNote = h("div", { class: "toggle-row" }, h("div", { class: "callout" }, icon("info"),
-      h("span", { text: "Sends traffic through a Tor service on 127.0.0.1:9050 (Tor Browser uses 9150). Tor must be running separately." })));
+      h("span", { text: android
+        ? "Sends traffic through Tor on 127.0.0.1:9050. Start Orbot first; its SOCKS port is 9050."
+        : "Sends traffic through a Tor service on 127.0.0.1:9050 (Tor Browser uses 9150). Tor must be running separately." })));
 
     const keycatPasswords = mode === "encrypted";
     root.replaceChildren(

@@ -1,4 +1,4 @@
-import { api, inBrowser } from "./api.js";
+import { android, api, inBrowser } from "./api.js";
 import { store } from "./store.js";
 import { drawer, fmtAgo, h, icon, inlinePanel, mount, segmented, selectRow, switchRow, toast } from "./dom.js";
 import { applyTheme } from "./theme.js";
@@ -65,13 +65,17 @@ export function openSettings(options = {}) {
       title = "Keycat is your default browser";
       hint = "Links from other apps open in Keycat.";
     } else if (s && !s.registered) {
-      hint = linux
-        ? "Install Keycat with install.sh to make it your default browser."
-        : "Install Keycat with KeycatSetup.exe to make it your default browser. A portable copy cannot be one.";
+      hint = android
+        ? "This device does not let apps become the default browser."
+        : linux
+          ? "Install Keycat with install.sh to make it your default browser."
+          : "Install Keycat with KeycatSetup.exe to make it your default browser. A portable copy cannot be one.";
     } else if (s) {
-      hint = linux
-        ? "Links from other apps will open in Keycat."
-        : "Windows opens Keycat's page in its default apps settings. Choose Set default there.";
+      hint = android
+        ? "Android asks you to pick Keycat as your browser app."
+        : linux
+          ? "Links from other apps will open in Keycat."
+          : "Windows opens Keycat's page in its default apps settings. Choose Set default there.";
       button = h("button", { class: "btn btn-primary btn-sm", type: "button", onclick: makeDefault }, "Make default");
     }
     return h("div", { class: "toggle-row" },
@@ -119,7 +123,7 @@ export function openSettings(options = {}) {
           }, "Keycat theme"))
       ),
       section("Behavior",
-        selectRow({
+        android ? null : selectRow({
           title: "When a profile opens",
           hint: "The profiles window comes back when the last profile is closed",
           value: settings.afterOpen,
@@ -128,7 +132,9 @@ export function openSettings(options = {}) {
         }),
         switchRow({
           title: "Overwrite decrypted files before deleting them",
-          hint: `Best effort on SSDs. Full-disk encryption (${app.platform === "linux" ? "LUKS" : "BitLocker"}) is the complete protection.`,
+          hint: android
+            ? "Best effort on flash storage. Android's own storage encryption is the complete protection."
+            : `Best effort on SSDs. Full-disk encryption (${app.platform === "linux" ? "LUKS" : "BitLocker"}) is the complete protection.`,
           checked: settings.secureWipe,
           onchange: secureWipe => save({ secureWipe }),
         })
@@ -147,7 +153,13 @@ export function openSettings(options = {}) {
           onchange: openLinks => save({ openLinks }),
         })
       ),
-      section("Browser engine",
+      android ? section("Browser engine",
+        h("dl", { class: "kv" },
+          h("dt", { text: "Version" }), h("dd", { text: core.version || "Unknown" }),
+          h("dt", { text: "Build" }), h("dd", { text: core.buildId || "Unknown" })
+        ),
+        h("p", { class: "hint", text: "GeckoView, the Firefox engine for Android, comes with the Keycat app and is updated with it." })
+      ) : section("Browser engine",
         h("dl", { class: "kv" },
           h("dt", { text: "Version" }), h("dd", { text: core.installed ? core.version : "Not installed" }),
           h("dt", { text: "Channel" }), h("dd", { text: core.channel || "release" }),
@@ -180,7 +192,7 @@ export function openSettings(options = {}) {
                   }, icon("refresh"), "Check now"))
         )
       ),
-      section("Storage",
+      android ? null : section("Storage",
         folderRow("Profiles and settings", app.dataDir, "data"),
         folderRow("Open sessions (decrypted while a profile runs)", app.sessionsDir, "sessions"),
         folderRow("Logs", "Diagnostic log without any personal data", "logs")
@@ -199,11 +211,12 @@ export function openSettings(options = {}) {
         ),
         h("dl", { class: "credits" },
           h("dt", { text: app.author || "tordev" }), h("dd", { text: "Creator of Keycat: design, encryption, profiles, password manager and the Keycat pages." }),
-          h("dt", { text: "Mozilla Firefox" }), h("dd", { text: "The browser engine, by Mozilla and its community (Mozilla Public License 2.0)." }),
+          h("dt", { text: android ? "Mozilla GeckoView" : "Mozilla Firefox" }), h("dd", { text: android ? "The Firefox engine for Android, by Mozilla and its community (Mozilla Public License 2.0)." : "The browser engine, by Mozilla and its community (Mozilla Public License 2.0)." }),
           h("dt", { text: "uBlock Origin" }), h("dd", { text: "The optional ad blocker, by Raymond Hill (GPLv3), installed from the add-on store." }),
-          h("dt", { text: "Go libraries" }), h("dd", { text: "golang.org/x/crypto, x/net and x/sys (BSD), klauspost/compress (BSD and Apache 2.0)." })
+          h("dt", { text: "Go libraries" }), h("dd", { text: android ? "golang.org/x/crypto, x/net, x/sys and x/mobile (BSD), klauspost/compress (BSD and Apache 2.0)." : "golang.org/x/crypto, x/net and x/sys (BSD), klauspost/compress (BSD and Apache 2.0)." })
         ),
-        h("div", { class: "hint small-print", text: "Keycat is licensed under the Mozilla Public License 2.0. Firefox is a trademark of the Mozilla Foundation; Keycat is not made or endorsed by Mozilla." })
+        h("div", { class: "hint small-print", text: "Keycat is licensed under the Mozilla Public License 2.0. Firefox is a trademark of the Mozilla Foundation; Keycat is not made or endorsed by Mozilla." }),
+        android ? h("button", { class: "link-btn hint-link", type: "button", onclick: () => window.KeycatAndroid.licenses() }, "Licenses") : null
       )
     );
   }

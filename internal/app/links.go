@@ -212,21 +212,32 @@ func (a *App) handleLinkDismiss(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
-func defaultBrowserStatus() map[string]bool {
-	exe, _ := os.Executable()
-	registered, isDefault := platform.DefaultBrowser(exe)
+func (a *App) defaultBrowserStatus() map[string]bool {
+	var registered, isDefault bool
+	if a.Options.Host != nil {
+		registered, isDefault = a.Options.Host.DefaultBrowser()
+	} else {
+		exe, _ := os.Executable()
+		registered, isDefault = platform.DefaultBrowser(exe)
+	}
 	return map[string]bool{"registered": registered, "isDefault": isDefault}
 }
 
 func (a *App) handleDefaultBrowser(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, defaultBrowserStatus())
+	writeJSON(w, http.StatusOK, a.defaultBrowserStatus())
 }
 
 func (a *App) handleMakeDefaultBrowser(w http.ResponseWriter, r *http.Request) {
-	exe, _ := os.Executable()
-	if err := platform.MakeDefaultBrowser(exe); err != nil {
+	var err error
+	if a.Options.Host != nil {
+		err = a.Options.Host.MakeDefaultBrowser()
+	} else {
+		exe, _ := os.Executable()
+		err = platform.MakeDefaultBrowser(exe)
+	}
+	if err != nil {
 		writeError(w, http.StatusConflict, "default_browser", err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, defaultBrowserStatus())
+	writeJSON(w, http.StatusOK, a.defaultBrowserStatus())
 }

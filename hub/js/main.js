@@ -1,4 +1,4 @@
-import { api, browser, currentProfileId, hasToken, inBrowser, listen } from "./api.js";
+import { android, api, browser, currentProfileId, hasToken, inBrowser, listen } from "./api.js";
 import { activity, isBusy, refresh, store } from "./store.js";
 import { avatar, confirmDialog, fmtAgo, fmtBytes, h, icon, mount, openMenu, setDrawings, toast } from "./dom.js";
 import { applyTheme, THEME_CYCLE, THEME_ICON, THEME_LABEL } from "./theme.js";
@@ -155,7 +155,7 @@ function welcome() {
 
 function footer(state) {
   return h("footer", { class: "footer" },
-    h("button", {
+    android ? null : h("button", {
       class: "link-btn item",
       onclick: () => api("POST", "/api/open-folder", { target: "data" }).catch(err => toast("bad", "Could not open the folder", err.message)),
     }, icon("folder"), "Data folder"),
@@ -293,7 +293,7 @@ function menuItems(p, st) {
     { label: "Privacy settings", icon: "shield", onclick: () => editProfile(p, "privacy") },
     encrypted ? { label: "Passwords", icon: "key", onclick: () => editProfile(p, "passwords") } : null,
     { label: "Fake identity", icon: "user", onclick: () => editProfile(p, "identity") },
-    { label: "Import from another browser", icon: "download", onclick: () => importData(p) },
+    { label: android ? "Import from a file" : "Import from another browser", icon: "download", onclick: () => importData(p) },
     encrypted ? { label: "Encryption and unlock", icon: "lock", onclick: () => editProfile(p, "security") } : null,
     encrypted && closed ? { label: "Verify vault", icon: "shieldCheck", onclick: () => openUnlock(p.id, "verify") } : null,
     st.state === "unsealed" ? { label: "Open profile", icon: "unlock", onclick: () => openUnlock(p.id, "open") } : null,

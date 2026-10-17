@@ -10,6 +10,22 @@ Firefox is made by Mozilla and the Firefox community and is licensed under the M
 
 Firefox is a trademark of the Mozilla Foundation. Keycat is not made or endorsed by Mozilla, and it does not use the Firefox name or logo for itself.
 
+## Mozilla GeckoView
+
+The engine of the Android app: GeckoView 158, the Firefox engine for Android that Firefox for Android is built on, as Mozilla publishes it on maven.mozilla.org. It is licensed under the Mozilla Public License 2.0, and its source code is the Firefox source above.
+
+## Libraries in the Android app
+
+GeckoView brings these with it, and the app uses AndroidX core itself:
+
+| Library | License |
+| --- | --- |
+| AndroidX (activity, annotation, collection, core, fragment, lifecycle, startup and others) and AndroidX Media3, The Android Open Source Project | Apache 2.0 |
+| Guava, Kotlin standard library, kotlinx.coroutines, JetBrains annotations, JSpecify, SnakeYAML | Apache 2.0 |
+| Google Play services (base, basement, fido, tasks), which GeckoView uses for passkeys | Android Software Development Kit License |
+
+The Go core of the app is bound with golang.org/x/mobile (BSD 3-Clause, The Go Authors). The app shows all these licenses under Keycat settings, About, Licenses; their texts are in the [licenses](licenses) and [android/licenses](android/licenses) folders.
+
 ## uBlock Origin
 
 The ad and tracker blocker that profiles can turn on, by Raymond Hill and contributors, licensed under the GNU GPL v3. It is not part of Keycat: when a profile wants it, the browser downloads it from addons.mozilla.org and checks it before installing.

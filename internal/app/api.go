@@ -309,7 +309,9 @@ func (a *App) handleState(w http.ResponseWriter, r *http.Request) {
 		views = append(views, a.view(p))
 	}
 	core := map[string]any{"installed": false}
-	if c, err := a.Core(); err == nil {
+	if e := a.Options.Engine; a.Options.Host != nil {
+		core = map[string]any{"installed": true, "version": e.Version, "buildId": e.BuildID, "channel": "release", "bundled": true}
+	} else if c, err := a.Core(); err == nil {
 		core = map[string]any{"installed": true, "version": c.Version, "buildId": c.BuildID, "channel": c.Channel, "dir": c.Dir}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -699,7 +701,7 @@ func (a *App) handleOpenFolder(w http.ResponseWriter, r *http.Request) {
 	}
 	dirs := map[string]string{"data": a.Paths.DataDir, "sessions": a.Paths.Sessions, "logs": a.Paths.Logs, "core": a.Paths.CoreDir}
 	dir, ok := dirs[req.Target]
-	if !ok {
+	if !ok || a.Options.Host != nil {
 		writeError(w, http.StatusBadRequest, "error", "unknown folder")
 		return
 	}

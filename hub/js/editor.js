@@ -1,4 +1,4 @@
-import { api } from "./api.js";
+import { android, api } from "./api.js";
 import { refresh, store } from "./store.js";
 import { avatar, confirmDialog, drawer, fmtAgo, fmtBytes, focusFirst, h, icon, inlinePanel, mount, switchRow, toast } from "./dom.js";
 import { securityLine, section } from "./views.js";
@@ -101,12 +101,13 @@ export function openEditor(id, initialTab = "profile", options = {}) {
         theme === "firefox" ? h("p", { class: "hint", text: "This profile uses a theme chosen in the add-ons manager. Pick one above to switch back to a built-in theme." }) : null),
       section("Import data",
         h("div", { class: "toggle-row" },
-          h("span", { class: "text" }, h("div", { class: "title", text: "Import from another browser" }),
+          h("span", { class: "text" }, h("div", { class: "title", text: android ? "Import from a file" : "Import from another browser" }),
             h("div", {
               class: "hint",
-              text: encrypted
-                ? "Bookmarks (favorites), history, saved form data and passwords from Edge, Chrome, Brave, Opera, Vivaldi or another browser on this PC, or from a passwords or bookmarks file. Everything is encrypted with this profile."
-                : "Bookmarks (favorites), history, saved form data and passwords from Edge, Chrome, Brave, Opera, Vivaldi or another browser on this PC, or from a passwords or bookmarks file.",
+              text: (android
+                ? "Passwords from a CSV file and bookmarks from an HTML file, exported from another browser."
+                : "Bookmarks (favorites), history, saved form data and passwords from Edge, Chrome, Brave, Opera, Vivaldi or another browser on this PC, or from a passwords or bookmarks file.")
+                + (encrypted ? " Everything is encrypted with this profile." : ""),
             })),
           h("button", { class: "btn btn-sm", type: "button", onclick: () => importData(cur) }, icon("download"), "Import"))
       ),

@@ -1,4 +1,4 @@
-import { api } from "./api.js";
+import { android, api } from "./api.js";
 import { refresh, store } from "./store.js";
 import { avatar, focusFirst, h, icon, modal, mount, passwordStrength, switchRow, toast } from "./dom.js";
 import { choiceCards } from "./views.js";
@@ -285,7 +285,7 @@ export function openWizard() {
     const group = themePicker(draft.appearance.theme, id => (draft.appearance.theme = id));
     return h("div", {},
       h("div", { class: "field" }, h("span", { class: "label", text: "Browser theme" }), group,
-        h("span", { class: "hint", text: "The browser's built-in themes. Others can be installed from the add-ons manager." })),
+        h("span", { class: "hint", text: android ? "The colours of the browser screen and of sites that follow it." : "The browser's built-in themes. Others can be installed from the add-ons manager." })),
       h("div", { class: "panel" },
         switchRow({ title: "Open the profile when it is created", checked: draft.open, onchange: on => {
           draft.open = on;
@@ -297,8 +297,10 @@ export function openWizard() {
   }
 
   const importRow = switchRow({
-    title: "Import from another browser when it opens",
-    hint: "Bookmarks (favorites), history, form data and passwords from Edge, Chrome, Brave, Opera, Vivaldi or another browser on this PC",
+    title: android ? "Import from a file when it opens" : "Import from another browser when it opens",
+    hint: android
+      ? "Passwords from a CSV file and bookmarks from an HTML file, exported from another browser"
+      : "Bookmarks (favorites), history, form data and passwords from Edge, Chrome, Brave, Opera, Vivaldi or another browser on this PC",
     checked: draft.import,
     onchange: on => (draft.import = on),
   });
@@ -332,12 +334,17 @@ export function openWizard() {
       open: draft.open,
       import: draft.open && draft.import,
     };
+    const later = android && draft.open && request.security.recovery;
+    if (later) {
+      request.open = request.import = false;
+    }
     try {
       const result = await api("POST", "/api/profiles", request);
+      const password = sec.password;
       sec.password = "";
       await refresh().catch(() => {});
       if (result.recoveryCode) {
-        showRecovery(result.profile, result.recoveryCode);
+        showRecovery(result.profile, result.recoveryCode, later ? password : "");
       } else {
         dlg.close();
         toast("good", `${result.profile.name} was created`, draft.open ? "Opening it now." : "");
@@ -351,10 +358,21 @@ export function openWizard() {
     }
   }
 
-  function showRecovery(profile, code) {
+  function showRecovery(profile, code, password = "") {
     dlg.setBusy(true);
     const saved = h("input", { type: "checkbox", class: "switch", id: "kc-saved" });
-    const done = h("button", { class: "btn btn-primary", type: "button", disabled: true, onclick: () => { dlg.setBusy(false); dlg.close(); } }, "Done");
+    const done = h("button", {
+      class: "btn btn-primary", type: "button", disabled: true,
+      onclick: () => {
+        dlg.setBusy(false);
+        dlg.close();
+        if (password) {
+          const body = { method: "password", password, ...(draft.import ? { then: "import" } : {}) };
+          password = "";
+          api("POST", `/api/profiles/${profile.id}/open`, body).catch(err => toast("bad", `${profile.name} could not be opened`, err.message));
+        }
+      },
+    }, password ? "Done, open it" : "Done");
     saved.addEventListener("change", () => (done.disabled = !saved.checked));
     const copy = async () => {
       try {
@@ -366,6 +384,10 @@ export function openWizard() {
     };
     const download = () => {
       const text = `Keycat recovery code\n\nProfile: ${profile.name}\nCreated: ${new Date().toLocaleString()}\n\n${code}\n\nThis code unlocks the profile if you forget its password. Keep it offline and private.\n`;
+      if (android) {
+        window.KeycatAndroid.saveText(`Keycat recovery code - ${profile.name}.txt`, text);
+        return;
+      }
       const link = h("a", { href: URL.createObjectURL(new Blob([text], { type: "text/plain" })), download: `Keycat recovery code - ${profile.name}.txt` });
       document.body.append(link);
       link.click();

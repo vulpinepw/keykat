@@ -1,13 +1,16 @@
 const KEY = "keycat-token";
 
 function takeToken() {
-  const match = /[#&]k=([0-9a-f]{64})/.exec(location.hash);
-  if (match) {
+  const params = new URLSearchParams(location.hash.slice(1));
+  const value = params.get("k") || "";
+  if (/^[0-9a-f]{64}$/.test(value)) {
     try {
-      sessionStorage.setItem(KEY, match[1]);
+      sessionStorage.setItem(KEY, value);
     } catch {}
-    history.replaceState(null, "", location.pathname);
-    return match[1];
+    params.delete("k");
+    const rest = params.toString();
+    history.replaceState(null, "", location.pathname + (rest ? "#" + rest : ""));
+    return value;
   }
   try {
     return sessionStorage.getItem(KEY) || "";
@@ -28,6 +31,8 @@ function browserLink() {
 }
 
 const link = browserLink();
+
+export const android = typeof window.KeycatAndroid === "object";
 
 export const inBrowser = !!link?.available;
 
