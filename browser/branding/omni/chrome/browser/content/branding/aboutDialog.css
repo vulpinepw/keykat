@@ -1,0 +1,41 @@
+@media not ((prefers-contrast) and (prefers-color-scheme: light)) {
+  #aboutDialogContainer {
+    background-color: #0f1115;
+    color: #e6e9ef;
+    color-scheme: dark;
+  }
+
+  #bottomBox {
+    background-color: #15181d;
+  }
+
+  #trademark {
+    color: #8a93a3;
+  }
+}
+
+#rightBox {
+  background-size: auto 44px;
+  margin-inline: 30px;
+  padding-top: 76px;
+}
+
+#bottomBox {
+  padding: 15px 10px;
+}
+
+#trademark {
+  font-size: xx-small;
+  text-align: center;
+  margin-block: 10px;
+}
+
+.bottom-link[href^="https:"],
+#communityExperimentalDesc {
+  display: none !important;
+}
+
+#contributeDesc {
+  font-size: small;
+  opacity: 0.75;
+}

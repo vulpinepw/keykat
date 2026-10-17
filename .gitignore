@@ -1,0 +1,5 @@
+/dist/
+/build/
+/tests/e2e/output/
+/cmd/*/resources.rc
+/cmd/*/rsrc_windows_amd64.syso

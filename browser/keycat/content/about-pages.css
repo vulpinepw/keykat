@@ -1,0 +1,111 @@
+@-moz-document url-prefix("about:preferences"), url-prefix("about:settings") {
+  setting-group[groupid="accountDisabled"],
+  setting-group[groupid="account"],
+  setting-group[groupid="sync"],
+  setting-group[groupid="defaultBrowserSync"],
+  setting-group[groupid="defaultBrowserHome"],
+  setting-group[groupid="profiles"],
+  setting-group[groupid="backup"],
+  setting-group[groupid="referrals"],
+  setting-group[groupid="dataCollection"],
+  setting-group[groupid="ipprotection"],
+  setting-group[groupid="browserIconEntry"],
+  setting-group[groupid="moreFromMozillaPromo"],
+  setting-group[groupid="moreFromMozillaProducts"],
+  #category-about-firefox,
+  #category-ai-features,
+  #category-experimental,
+  #category-more-from-mozilla,
+  #policies-container-content {
+    display: none !important;
+  }
+
+  :root[keycat-settings] :is(
+    setting-group[groupid="securityPrivacyStatus"],
+    setting-group[groupid="securityPrivacyWarnings"],
+    setting-group[groupid="etpStatus"],
+    setting-group[groupid="history2"],
+    setting-group[groupid="dnsOverHttps"],
+    setting-group[groupid="nonTechnicalPrivacy2"],
+    setting-group[groupid="defaultEngine"]
+  ) {
+    display: none !important;
+  }
+
+  .keycat-note {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-block: 4px 16px;
+    padding: 14px 16px;
+    border-radius: var(--border-radius-large, 12px);
+    background-color: var(--background-color-box, var(--in-content-box-background));
+    box-shadow: var(--box-shadow-card, none);
+  }
+
+  .keycat-note img {
+    width: 22px;
+    height: 22px;
+    -moz-context-properties: fill;
+    fill: var(--color-accent-primary, currentColor);
+  }
+
+  .keycat-note .text {
+    flex: 1;
+    display: grid;
+    gap: 2px;
+  }
+
+  .keycat-note .text span {
+    color: var(--text-color-deemphasized);
+  }
+
+  :root[keycat-settings="passwords"] setting-group[groupid="passwords"],
+  :root[keycat-settings="passwords"] #category-passwords-autofill {
+    display: none !important;
+  }
+
+  img[src="chrome://browser/skin/fxa/avatar-empty.svg"] {
+    content: url("chrome://global/skin/icons/settings.svg");
+  }
+
+  .keycat-pane {
+    display: block;
+    margin-block-start: 4px;
+  }
+
+  :root[keycat-pane-shown] .main-content {
+    overflow-y: hidden !important;
+  }
+
+  :root[keycat-pane-shown] .pane-container {
+    width: min(100%, 820px) !important;
+  }
+
+  :root[keycat-pane-shown="paneKeycatProfiles"] .pane-container {
+    width: min(100%, 1100px) !important;
+  }
+
+  .keycat-pane[hidden] {
+    display: none;
+  }
+
+  .keycat-frame {
+    display: block;
+    width: 100%;
+    min-height: 360px;
+    border: none;
+    background: transparent;
+    color-scheme: light dark;
+  }
+}
+
+@-moz-document url-prefix("about:logins") {
+  li[data-l10n-id^="login-intro-instructions-fxa"],
+  .fxaccounts-extra-text,
+  .fxaccounts-enable-button,
+  .fxaccounts-avatar-button,
+  fxaccounts-button {
+    display: none !important;
+  }
+}

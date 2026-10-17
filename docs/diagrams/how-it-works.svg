@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="320" viewBox="0 0 820 320">
+  <style>
+    text { font: 14px "Segoe UI", -apple-system, Helvetica, Arial, sans-serif; fill: #1f2328; }
+    .b { font-weight: 600; font-size: 15.5px; }
+    .m { fill: #59636e; }
+    .mono { font-family: Consolas, ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13.5px; }
+    .ln { stroke: #8c959f; stroke-width: 1.3; fill: none; }
+    .tip { fill: #8c959f; }
+    @media (prefers-color-scheme: dark) {
+      text { fill: #e6edf3; }
+      .m { fill: #9198a1; }
+      .ln { stroke: #6e7681; }
+      .tip { fill: #6e7681; }
+    }
+  </style>
+  <defs>
+    <marker id="tip" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path class="tip" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+
+  <text x="20" y="96" class="b">Keycat.exe</text>
+  <text x="20" y="118" class="m">the launcher, written in Go</text>
+
+  <text x="470" y="44" class="b">profiles window</text>
+  <text x="470" y="66" class="m">the engine as an app window, with the Keycat pages</text>
+
+  <text x="470" y="140" class="b">one browser per open profile</text>
+  <text x="470" y="162" class="m">Firefox engine + the Keycat layer (settings,</text>
+  <text x="470" y="182" class="m">Keycat Passwords, autofill, about:keycat)</text>
+
+  <path class="ln" d="M232 86 L458 50" marker-start="url(#tip)" marker-end="url(#tip)"/>
+  <path class="ln" d="M232 106 L458 136" marker-start="url(#tip)" marker-end="url(#tip)"/>
+  <text x="290" y="102" class="m">local API, 127.0.0.1</text>
+
+  <path class="ln" d="M60 132 L60 214" marker-end="url(#tip)"/>
+  <text x="72" y="178" class="m">unlock and seal</text>
+
+  <text x="20" y="246" class="mono">Profiles\&lt;id&gt;\vault.kcv</text>
+  <text x="290" y="246" class="m">the whole profile, encrypted</text>
+  <text x="20" y="272" class="mono">Profiles\&lt;id&gt;\keychain.kck</text>
+  <text x="290" y="272" class="m">Keycat Passwords, encrypted</text>
+  <text x="20" y="298" class="mono">Sessions\&lt;id&gt;\</text>
+  <text x="290" y="298" class="m">the decrypted copy, only while the profile is open</text>
+</svg>

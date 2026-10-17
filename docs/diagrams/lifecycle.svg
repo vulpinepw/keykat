@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="250" viewBox="0 0 820 250">
+  <style>
+    text { font: 14px "Segoe UI", -apple-system, Helvetica, Arial, sans-serif; fill: #1f2328; }
+    .b { font-weight: 600; font-size: 15.5px; }
+    .m { fill: #59636e; }
+    .ln { stroke: #8c959f; stroke-width: 1.3; fill: none; }
+    .tip { fill: #8c959f; }
+    @media (prefers-color-scheme: dark) {
+      text { fill: #e6edf3; }
+      .m { fill: #9198a1; }
+      .ln { stroke: #6e7681; }
+      .tip { fill: #6e7681; }
+    }
+  </style>
+  <defs>
+    <marker id="tip" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path class="tip" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+
+  <text x="20" y="40" class="b">locked</text>
+  <text x="20" y="64" class="m">one encrypted file,</text>
+  <text x="20" y="84" class="m">vault.kcv</text>
+
+  <text x="220" y="40" class="b">unlocking</text>
+  <text x="220" y="64" class="m">Argon2id, a rescue copy,</text>
+  <text x="220" y="84" class="m">decrypt into Sessions</text>
+
+  <text x="440" y="40" class="b">open</text>
+  <text x="440" y="64" class="m">the browser runs on</text>
+  <text x="440" y="84" class="m">the decrypted copy</text>
+
+  <text x="640" y="40" class="b">sealing</text>
+  <text x="640" y="64" class="m">encrypt, verify,</text>
+  <text x="640" y="84" class="m">swap in, wipe</text>
+
+  <path class="ln" d="M84 35 L206 35" marker-end="url(#tip)"/>
+  <path class="ln" d="M302 35 L426 35" marker-end="url(#tip)"/>
+  <path class="ln" d="M482 35 L626 35" marker-end="url(#tip)"/>
+
+  <path class="ln" d="M670 100 L670 130 L40 130 L40 102" marker-end="url(#tip)"/>
+  <text x="250" y="154" class="m">closed again, and the profiles window comes back</text>
+
+  <text x="20" y="206" class="m">After a crash or a full disk, the next start offers to reopen or seal the leftover copy,</text>
+  <text x="20" y="228" class="m">and a vault that fails to verify is replaced by its rescue copy.</text>
+</svg>

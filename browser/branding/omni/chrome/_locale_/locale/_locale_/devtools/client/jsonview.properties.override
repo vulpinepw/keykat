@@ -1,0 +1,2 @@
+jsonViewer.sizeProfilerButton=Investigate JSON size in the Profiler
+jsonViewer.sizeProfilerButtonDisabled=Investigate JSON size in the Profiler (disabled for invalid JSON)

@@ -1,0 +1,12 @@
+fileNotFound=Keycat can't find the file at %S.
+unknownProtocolFound=Keycat doesn't know how to open this address, because one of the following protocols (%S) isn't associated with any program or is not allowed in this context.
+connectionFailure=Keycat can't establish a connection to the server at %S.
+redirectLoop=Keycat has detected that the server is redirecting the request for this address in a way that will never complete.
+clientSocketMisconfiguration=Keycat doesn't know how to communicate with the server.
+netOffline=Keycat is currently in offline mode and can't browse the Web.
+deniedPortAccess=This address uses a network port which is normally used for purposes other than Web browsing. Keycat has canceled the request for your protection.
+proxyResolveFailure=Keycat is configured to use a proxy server that can't be found.
+proxyConnectFailure=Keycat is configured to use a proxy server that is refusing connections.
+sslv3Used=Keycat cannot guarantee the safety of your data on %S because it uses SSLv3, a broken security protocol.
+blockedByCORP=Keycat didn't load this page because it looks like the security configuration doesn't match the previous page.
+networkProtocolError=Keycat has experienced a network protocol violation that cannot be repaired.

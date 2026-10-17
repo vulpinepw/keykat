@@ -1,0 +1,72 @@
+{
+  "policies": {
+    "DisableTelemetry": true,
+    "DisableFirefoxAccounts": true,
+    "BrowserDataBackup": false,
+    "DisableFirefoxStudies": true,
+    "DisableDefaultBrowserAgent": true,
+    "DisableAppUpdate": true,
+    "AppAutoUpdate": false,
+    "DontCheckDefaultBrowser": true,
+    "DisableFeedbackCommands": true,
+    "DisablePocket": true,
+    "DisableSetDesktopBackground": true,
+    "DisableProfileRefresh": true,
+    "SkipTermsOfUse": true,
+    "OverrideFirstRunPage": "",
+    "OverridePostUpdatePage": "",
+    "NoDefaultBookmarks": true,
+    "UserMessaging": {
+      "WhatsNew": false,
+      "ExtensionRecommendations": false,
+      "FeatureRecommendations": false,
+      "UrlbarInterventions": false,
+      "SkipOnboarding": true,
+      "MoreFromMozilla": false,
+      "FirefoxLabs": false,
+      "Locked": false
+    },
+    "FirefoxHome": {
+      "Search": true,
+      "Weather": false,
+      "TopSites": true,
+      "SponsoredTopSites": false,
+      "Highlights": true,
+      "Pocket": false,
+      "Stories": false,
+      "SponsoredPocket": false,
+      "SponsoredStories": false,
+      "Snippets": false,
+      "Locked": false
+    },
+    "FirefoxSuggest": {
+      "WebSuggestions": false,
+      "SponsoredSuggestions": false,
+      "ImproveSuggest": false,
+      "Locked": false
+    },
+    "AIControls": {
+      "Default": { "Value": "blocked", "Locked": false },
+      "Translations": { "Value": "available", "Locked": false }
+    },
+    "SearchEngines": {
+      "Add": [
+        {
+          "Name": "Brave Search",
+          "URLTemplate": "https://search.brave.com/search?q={searchTerms}",
+          "SuggestURLTemplate": "https://search.brave.com/api/suggest?q={searchTerms}",
+          "Method": "GET",
+          "Alias": "@brave",
+          "Description": "Brave Search: an independent search index"
+        },
+        {
+          "Name": "Mojeek",
+          "URLTemplate": "https://www.mojeek.com/search?q={searchTerms}",
+          "Method": "GET",
+          "Alias": "@mojeek",
+          "Description": "Mojeek: an independent search engine without tracking"
+        }
+      ]
+    }
+  }
+}

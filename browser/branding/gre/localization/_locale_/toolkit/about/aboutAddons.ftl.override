@@ -1,0 +1,11 @@
+discopane-intro3 =
+    Extensions and themes let you customize { -brand-product-name }. They can boost privacy,
+    enhance productivity, improve media, change the way { -brand-product-name } looks, and
+    so much more. These small software programs are often developed by a third party. Here's
+    a selection that is <a data-l10n-name="learn-more-trigger">recommended</a> for
+    exceptional security, performance, and functionality.
+
+addon-badge-recommended4 =
+  .title = Recommended extensions meet standards for security and performance
+
+recommended-theme-1 = Feeling creative? Build your own theme in the theme settings.

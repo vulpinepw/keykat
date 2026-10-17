@@ -1,0 +1,12 @@
+pane-account-sync-title2 = General
+    .title = General
+
+account-sync-section =
+    .heading = General
+
+
+sync-mobile-promo = Sync is not available in Keycat.
+sync-engine-addons =
+    .label = Add-ons
+    .tooltiptext = Extensions and themes
+    .accesskey = A

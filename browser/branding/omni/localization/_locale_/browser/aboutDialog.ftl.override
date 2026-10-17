@@ -1,0 +1,12 @@
+community-2 = { -brand-short-name } is an independent browser made by tordev, with encrypted profiles and its own password manager.
+
+community-exp = { -brand-short-name } is an independent browser made by tordev, with encrypted profiles and its own password manager.
+
+helpus = Built on the Mozilla Firefox engine (Mozilla Public License 2.0).
+
+helpus-referrals2 = Built on the Mozilla Firefox engine (Mozilla Public License 2.0).
+
+update-policy-disabled = { -brand-short-name } keeps its browser engine up to date itself.
+
+settings-update-policy-disabled =
+    .label = { -brand-short-name } keeps its browser engine up to date itself.

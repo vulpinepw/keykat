@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="330" viewBox="0 0 820 330">
+  <style>
+    text { font: 14px "Segoe UI", -apple-system, Helvetica, Arial, sans-serif; fill: #1f2328; }
+    .b { font-weight: 600; font-size: 15.5px; }
+    .m { fill: #59636e; }
+    .mono { font-family: Consolas, ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13.5px; }
+    .ln { stroke: #8c959f; stroke-width: 1.3; fill: none; }
+    .tip { fill: #8c959f; }
+    @media (prefers-color-scheme: dark) {
+      text { fill: #e6edf3; }
+      .m { fill: #9198a1; }
+      .ln { stroke: #6e7681; }
+      .tip { fill: #6e7681; }
+    }
+  </style>
+  <defs>
+    <marker id="tip" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path class="tip" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+
+  <text x="20" y="36" class="mono">KCVAULT 01</text>
+  <path class="ln" d="M120 22 L120 42"/>
+  <text x="134" y="36" class="mono">length</text>
+  <path class="ln" d="M198 22 L198 42"/>
+  <text x="212" y="36" class="mono">header (JSON)</text>
+  <path class="ln" d="M336 22 L336 42"/>
+  <text x="350" y="36" class="mono">chunk 0</text>
+  <path class="ln" d="M424 22 L424 42"/>
+  <text x="438" y="36" class="mono">chunk 1</text>
+  <path class="ln" d="M512 22 L512 42"/>
+  <text x="532" y="36" class="mono">...</text>
+  <path class="ln" d="M570 22 L570 42"/>
+  <text x="584" y="36" class="mono">last chunk</text>
+
+  <text x="212" y="68" class="m">cipher, a new salt on every seal,</text>
+  <text x="212" y="88" class="m">nonce prefixes, chunk size, zstd</text>
+  <text x="438" y="68" class="m">1 MiB each, a tag per cipher,</text>
+  <text x="438" y="88" class="m">nonce = prefix, counter, last flag</text>
+
+  <text x="20" y="168">password</text>
+  <text x="20" y="188" class="m">Argon2id, up to 1 GiB</text>
+  <text x="20" y="222">recovery code</text>
+  <text x="20" y="242" class="m">160 random bits</text>
+  <text x="20" y="276">Windows account</text>
+  <text x="20" y="296" class="m">DPAPI</text>
+
+  <path class="ln" d="M190 172 L318 215" marker-end="url(#tip)"/>
+  <path class="ln" d="M190 226 L318 226" marker-end="url(#tip)"/>
+  <path class="ln" d="M190 280 L318 237" marker-end="url(#tip)"/>
+
+  <text x="330" y="231" class="b">master key</text>
+  <path class="ln" d="M428 226 L494 226" marker-end="url(#tip)"/>
+  <text x="440" y="214" class="m">HKDF</text>
+  <text x="506" y="222">a key for each cipher layer</text>
+  <text x="506" y="242">and one for Keycat Passwords</text>
+
+  <text x="330" y="290" class="m">Every way in opens the same master key, so a new password never</text>
+  <text x="330" y="310" class="m">re-encrypts the vault. Paranoid runs AES-256-GCM, then XChaCha20-Poly1305.</text>
+</svg>
