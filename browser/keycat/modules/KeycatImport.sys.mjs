@@ -1,3 +1,4 @@
+import { AppConstants } from "resource://gre/modules/AppConstants.sys.mjs";
 import { setTimeout, clearTimeout } from "resource://gre/modules/Timer.sys.mjs";
 
 const lazy = {};
@@ -62,8 +63,36 @@ function countLogins(path) {
   ).then(rows => rows[0]?.getResultByName("n") || 0, () => 0);
 }
 
+class LinuxLoginCrypto {
+  async decryptData(value) {
+    const data = Uint8Array.from(value);
+    if (String.fromCharCode(...data.subarray(0, 3)) !== "v10") {
+      throw new Error("the key of this password is in the keyring");
+    }
+    this.key ||= this.fixedKey();
+    const iv = new Uint8Array(16).fill(0x20);
+    const plain = await crypto.subtle.decrypt({ name: "AES-CBC", iv }, await this.key, data.subarray(3));
+    return new TextDecoder().decode(plain);
+  }
+
+  async fixedKey() {
+    const encoder = new TextEncoder();
+    const base = await crypto.subtle.importKey("raw", encoder.encode("peanuts"), "PBKDF2", false, ["deriveKey"]);
+    return crypto.subtle.deriveKey(
+      { name: "PBKDF2", salt: encoder.encode("saltysalt"), iterations: 1, hash: "SHA-1" },
+      base,
+      { name: "AES-CBC", length: 128 },
+      false,
+      ["decrypt"]
+    );
+  }
+
+  finalize() {}
+}
+
 async function readChromiumLogins(folder, userDataPathSuffix) {
-  const loginCrypto = new lazy.ChromeWindowsLoginCrypto(userDataPathSuffix);
+  const loginCrypto =
+    AppConstants.platform === "win" ? new lazy.ChromeWindowsLoginCrypto(userDataPathSuffix) : new LinuxLoginCrypto();
   const logins = [];
   let unreadable = 0;
   const now = new Date();
@@ -148,6 +177,9 @@ export const KeycatImport = {
   },
 
   readChromiumPasswords() {
+    if (AppConstants.platform !== "win" && AppConstants.platform !== "linux") {
+      return;
+    }
     const keycat = this;
     lazy.ChromeProfileMigrator.prototype._GetPasswordsResource = async function (folder) {
       let count = 0;
@@ -276,8 +308,13 @@ export const KeycatImport = {
       parts.push(`${imported} password${imported === 1 ? " was" : "s were"} imported into Keycat Passwords, encrypted with this profile.`);
     }
     if (unreadable) {
+      const them = unreadable === 1 ? "it" : "them";
+      const why =
+        AppConstants.platform === "win"
+          ? `${from} encrypts ${them} so that only ${from} can open ${them}`
+          : `${from} keeps the key to ${them} in your system's keyring`;
       parts.push(
-        `${unreadable} password${unreadable === 1 ? "" : "s"} could not be read: ${from} encrypts ${unreadable === 1 ? "it" : "them"} so that only ${from} can open ${unreadable === 1 ? "it" : "them"}. ` +
+        `${unreadable} password${unreadable === 1 ? "" : "s"} could not be read: ${why}. ` +
           `In ${from}'s password settings, choose Export passwords, import that CSV file here, then delete the file.`
       );
     } else if (imported) {

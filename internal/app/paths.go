@@ -24,6 +24,19 @@ type Paths struct {
 }
 
 func ResolvePaths() (*Paths, error) {
+	p, err := LocatePaths()
+	if err != nil {
+		return nil, err
+	}
+	for _, d := range []string{p.DataDir, p.LocalDir, p.Profiles, p.Sessions, p.Hub, p.Logs} {
+		if err := os.MkdirAll(d, 0o700); err != nil {
+			return nil, err
+		}
+	}
+	return p, nil
+}
+
+func LocatePaths() (*Paths, error) {
 	exe, err := os.Executable()
 	if err != nil {
 		return nil, err
@@ -43,26 +56,14 @@ func ResolvePaths() (*Paths, error) {
 		p.DataDir = filepath.Join(exeDir, "Data")
 		p.LocalDir = filepath.Join(p.DataDir, "Local")
 	default:
-		roaming, err := os.UserConfigDir()
-		if err != nil {
+		if p.DataDir, p.LocalDir, err = defaultDirs(); err != nil {
 			return nil, err
 		}
-		local, err := os.UserCacheDir()
-		if err != nil {
-			return nil, err
-		}
-		p.DataDir = filepath.Join(roaming, "Keycat")
-		p.LocalDir = filepath.Join(local, "Keycat")
 	}
 	p.Profiles = filepath.Join(p.DataDir, "Profiles")
 	p.Sessions = filepath.Join(p.LocalDir, "Sessions")
 	p.Hub = filepath.Join(p.LocalDir, "Hub")
 	p.Logs = filepath.Join(p.LocalDir, "Logs")
-	for _, d := range []string{p.DataDir, p.LocalDir, p.Profiles, p.Sessions, p.Hub, p.Logs} {
-		if err := os.MkdirAll(d, 0o700); err != nil {
-			return nil, err
-		}
-	}
 	return p, nil
 }
 

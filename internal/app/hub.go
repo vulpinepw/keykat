@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"keycat/internal/firefox"
+	"keycat/internal/platform"
 	"keycat/internal/profile"
 	"keycat/internal/session"
-	"keycat/internal/winutil"
 )
 
 type Hub struct {
@@ -45,10 +45,10 @@ func (h *Hub) Show() error {
 	}
 	defer h.mu.Unlock()
 	if h.cmd != nil {
-		if h.pid != 0 {
+		if h.pid != 0 && platform.RaisesWindows {
 			pid := uint32(h.pid)
 			go func() {
-				for i := 0; i < 20 && !winutil.FocusProcess(pid); i++ {
+				for i := 0; i < 20 && !platform.FocusProcess(pid); i++ {
 					time.Sleep(150 * time.Millisecond)
 				}
 			}()
@@ -87,6 +87,8 @@ func (h *Hub) Show() error {
 	if err != nil {
 		return err
 	}
+	os.Unsetenv("DESKTOP_STARTUP_ID")
+	os.Unsetenv("XDG_ACTIVATION_TOKEN")
 	h.cmd, h.pid, h.leaving = cmd, 0, false
 	h.app.log.Printf("hub window opened")
 	exited := h.exited
@@ -139,8 +141,11 @@ func (h *Hub) hello(pid int) {
 	h.mu.Lock()
 	h.pid = pid
 	h.mu.Unlock()
+	if !platform.RaisesWindows {
+		return
+	}
 	go func() {
-		for i := 0; i < 30 && !winutil.FocusProcess(uint32(pid)); i++ {
+		for i := 0; i < 30 && !platform.FocusProcess(uint32(pid)); i++ {
 			time.Sleep(150 * time.Millisecond)
 		}
 	}()

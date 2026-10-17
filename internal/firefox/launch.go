@@ -1,11 +1,8 @@
 package firefox
 
 import (
-	"errors"
-	"io/fs"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"time"
 )
 
@@ -18,7 +15,7 @@ type LaunchOptions struct {
 }
 
 func (c *Core) Launch(opt LaunchOptions) (*exec.Cmd, error) {
-	args := []string{"-profile", opt.ProfileDir, "-no-remote", "-wait-for-browser"}
+	args := append(systemArgs(opt.Headless), "-profile", opt.ProfileDir, "-no-remote")
 	if opt.Headless {
 		args = append(args, "--headless")
 	}
@@ -59,18 +56,6 @@ func cleanEnv(env []string) []string {
 		}
 	}
 	return out
-}
-
-func ProfileInUse(dir string) bool {
-	f, err := os.OpenFile(filepath.Join(dir, "parent.lock"), os.O_RDWR, 0)
-	if err == nil {
-		f.Close()
-		return false
-	}
-	if errors.Is(err, fs.ErrNotExist) {
-		return false
-	}
-	return isSharingViolation(err)
 }
 
 func WaitProfileReleased(dir string, stop <-chan struct{}) {

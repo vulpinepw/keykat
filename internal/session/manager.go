@@ -18,9 +18,9 @@ import (
 	"keycat/internal/events"
 	"keycat/internal/firefox"
 	"keycat/internal/keychain"
+	"keycat/internal/platform"
 	"keycat/internal/profile"
 	"keycat/internal/vault"
-	"keycat/internal/winutil"
 )
 
 type State string
@@ -723,14 +723,19 @@ func (m *Manager) Focus(id string) {
 	m.mu.Lock()
 	s := m.sessions[id]
 	m.mu.Unlock()
-	if s != nil && s.pid != 0 {
-		go focusWithRetry(uint32(s.pid))
+	if s == nil || s.pid == 0 {
+		return
 	}
+	if !platform.RaisesWindows {
+		m.Send(id, Command{Type: "focus"})
+		return
+	}
+	go focusWithRetry(uint32(s.pid))
 }
 
 func focusWithRetry(pid uint32) {
 	for i := 0; i < 40; i++ {
-		if winutil.FocusProcess(pid) {
+		if platform.FocusProcess(pid) {
 			return
 		}
 		time.Sleep(150 * time.Millisecond)
@@ -785,7 +790,9 @@ func (m *Manager) Hello(in *Instance, pid int) {
 	in.session.pid = pid
 	m.mu.Unlock()
 	m.setStatus(in.ProfileID, m.Status(in.ProfileID).State, "", 0, "", m.Status(in.ProfileID).Notice)
-	go focusWithRetry(uint32(pid))
+	if platform.RaisesWindows {
+		go focusWithRetry(uint32(pid))
+	}
 }
 
 func (m *Manager) Closing(in *Instance) {

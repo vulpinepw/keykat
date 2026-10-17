@@ -119,6 +119,7 @@ const BASE = {
   "browser.taskbar.lists.recent.enabled": false,
   "browser.taskbar.lists.tasks.enabled": false,
   "browser.startup.preXulSkeletonUI": false,
+  "browser.gnome-search-provider.enabled": false,
 
   "app.support.baseURL": "https://github.com/vulpinepw#",
   "app.feedback.baseURL": "https://github.com/vulpinepw",
@@ -185,10 +186,26 @@ const LOCKED = [
   "browser.firefoxbridge.enabled",
   "browser.taskbarTabs.enabled",
   "browser.taskbar.lists.enabled",
+  "browser.gnome-search-provider.enabled",
   "browser.bypassAutoTriggerActions",
   "browser.newtabpage.activity-stream.asrouter.providers.onboarding",
   "app.support.baseURL",
 ];
+
+const SYSTEMS = {
+  windows: { ua: "Windows NT 10.0; Win64; x64", platform: "Win32", oscpu: "Windows NT 10.0; Win64; x64", appVersion: "5.0 (Windows)" },
+  macos: { ua: "Macintosh; Intel Mac OS X 10.15", platform: "MacIntel", oscpu: "Intel Mac OS X 10.15", appVersion: "5.0 (Macintosh)" },
+  linux: { ua: "X11; Linux x86_64", platform: "Linux x86_64", oscpu: "Linux x86_64", appVersion: "5.0 (X11)" },
+};
+
+const USER_AGENT_PREFS = {
+  userAgent: "general.useragent.override",
+  platform: "general.platform.override",
+  oscpu: "general.oscpu.override",
+  appVersion: "general.appversion.override",
+};
+
+let randomSystem = null;
 
 function setDefault(branch, name, value) {
   try {
@@ -276,28 +293,61 @@ export const KeycatPrefs = {
   },
 
   applyProfileDefaults(config) {
+    const branch = Services.prefs.getDefaultBranch("");
     const behavior = config.cookieBehavior;
-    if (![1, 2, 5].includes(behavior)) {
+    const cookies = [1, 2, 5].includes(behavior);
+    if (cookies) {
+      setDefault(branch, "network.cookie.cookieBehavior", behavior);
+      setDefault(branch, "network.cookie.cookieBehavior.pbmode", behavior);
+    }
+    const blur = config.privacy?.fingerprinting !== "block";
+    setDefault(branch, "privacy.trackingprotection.fingerprinting.enabled", true);
+    setDefault(branch, "privacy.fingerprintingProtection", blur);
+    setDefault(branch, "privacy.fingerprintingProtection.pbmode", blur);
+    const strict = branch.getStringPref("browser.contentblocking.features.strict", "");
+    if (!strict) {
       return;
     }
-    const branch = Services.prefs.getDefaultBranch("");
-    setDefault(branch, "network.cookie.cookieBehavior", behavior);
-    setDefault(branch, "network.cookie.cookieBehavior.pbmode", behavior);
-    const strict = branch.getStringPref("browser.contentblocking.features.strict", "");
-    if (strict) {
-      const adapted = strict
-        .split(",")
-        .map(token => {
-          if (/^cookieBehaviorPBM\d$/.test(token)) {
-            return "cookieBehaviorPBM" + behavior;
-          }
-          if (/^cookieBehavior\d$/.test(token)) {
-            return "cookieBehavior" + behavior;
-          }
-          return token;
-        })
-        .join(",");
-      setDefault(branch, "browser.contentblocking.features.strict", adapted);
+    const features = { fp: "fp", fpp: blur ? "fpp" : "-fpp", fppPrivate: blur ? "fppPrivate" : "-fppPrivate" };
+    const adapted = strict.split(",").map(token => {
+      if (cookies && /^cookieBehaviorPBM\d$/.test(token)) {
+        return "cookieBehaviorPBM" + behavior;
+      }
+      if (cookies && /^cookieBehavior\d$/.test(token)) {
+        return "cookieBehavior" + behavior;
+      }
+      const name = token.replace(/^-/, "");
+      return Object.hasOwn(features, name) ? features[name] : token;
+    });
+    for (const [name, token] of Object.entries(features)) {
+      if (!adapted.some(t => t.replace(/^-/, "") === name)) {
+        adapted.push(token);
+      }
+    }
+    setDefault(branch, "browser.contentblocking.features.strict", adapted.join(","));
+  },
+
+  applyUserAgent(privacy) {
+    let choice = privacy?.userAgent || "real";
+    if (choice === "random") {
+      randomSystem ||= Object.keys(SYSTEMS)[Math.floor(Math.random() * 3)];
+      choice = randomSystem;
+    }
+    const system = SYSTEMS[choice];
+    try {
+      if (!system) {
+        for (const name of Object.values(USER_AGENT_PREFS)) {
+          Services.prefs.clearUserPref(name);
+        }
+        return;
+      }
+      const version = parseInt(Services.appinfo.version, 10) + ".0";
+      Services.prefs.setStringPref(USER_AGENT_PREFS.userAgent, `Mozilla/5.0 (${system.ua}; rv:${version}) Gecko/20100101 Firefox/${version}`);
+      Services.prefs.setStringPref(USER_AGENT_PREFS.platform, system.platform);
+      Services.prefs.setStringPref(USER_AGENT_PREFS.oscpu, system.oscpu);
+      Services.prefs.setStringPref(USER_AGENT_PREFS.appVersion, system.appVersion);
+    } catch (ex) {
+      console.error("Keycat: could not set the user agent", ex);
     }
   },
 };

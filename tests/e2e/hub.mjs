@@ -5,7 +5,8 @@ import path from "node:path";
 import { Marionette } from "./marionette.mjs";
 
 const root = path.resolve(import.meta.dirname, "..", "..");
-const exe = process.argv[2] || path.join(root, "dist", "Keycat", "Keycat.exe");
+const windows = process.platform === "win32";
+const exe = process.argv[2] || (windows ? path.join(root, "dist", "Keycat", "Keycat.exe") : path.join(root, "dist", "linux", "keycat", "keycat"));
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "keycat-hub-"));
 const hubDir = path.join(dataDir, "Local", "Hub");
 const PASSWORD = "correct horse battery staple";
@@ -48,7 +49,22 @@ async function state(id) {
   return data.profiles.find(p => p.id === id)?.status || {};
 }
 
+function hubPid() {
+  try {
+    return Number(fs.readlinkSync(path.join(hubDir, "lock")).split("+").pop()) || 0;
+  } catch {
+    return 0;
+  }
+}
+
 function hubOpen() {
+  if (!windows) {
+    try {
+      return hubPid() > 0 && process.kill(hubPid(), 0);
+    } catch {
+      return false;
+    }
+  }
   try {
     fs.closeSync(fs.openSync(path.join(hubDir, "parent.lock"), "r+"));
     return false;
@@ -75,6 +91,10 @@ async function hubSettled(timeoutMs) {
 }
 
 function closeHubWindow() {
+  if (!windows) {
+    process.kill(hubPid(), "SIGKILL");
+    return;
+  }
   const filter = hubDir.replace(/'/g, "''");
   execFileSync("powershell.exe", ["-NoProfile", "-Command",
     `Get-CimInstance Win32_Process -Filter "Name='firefox.exe'" | Where-Object { $_.CommandLine -like '*${filter}*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }`]);

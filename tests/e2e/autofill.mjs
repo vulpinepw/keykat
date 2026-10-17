@@ -6,7 +6,7 @@ import path from "node:path";
 import { Marionette } from "./marionette.mjs";
 
 const root = path.resolve(import.meta.dirname, "..", "..");
-const exe = process.argv[2] || path.join(root, "dist", "Keycat", "Keycat.exe");
+const exe = process.argv[2] || (process.platform === "win32" ? path.join(root, "dist", "Keycat", "Keycat.exe") : path.join(root, "dist", "linux", "keycat", "keycat"));
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "keycat-autofill-"));
 const PASSWORD = "correct horse battery staple";
 const results = [];

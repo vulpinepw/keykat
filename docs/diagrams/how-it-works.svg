@@ -19,8 +19,8 @@
     </marker>
   </defs>
 
-  <text x="20" y="96" class="b">Keycat.exe</text>
-  <text x="20" y="118" class="m">the launcher, written in Go</text>
+  <text x="20" y="96" class="b">Keycat launcher</text>
+  <text x="20" y="118" class="m">a small program written in Go</text>
 
   <text x="470" y="44" class="b">profiles window</text>
   <text x="470" y="66" class="m">the engine as an app window, with the Keycat pages</text>
@@ -36,10 +36,10 @@
   <path class="ln" d="M60 132 L60 214" marker-end="url(#tip)"/>
   <text x="72" y="178" class="m">unlock and seal</text>
 
-  <text x="20" y="246" class="mono">Profiles\&lt;id&gt;\vault.kcv</text>
+  <text x="20" y="246" class="mono">Profiles/&lt;id&gt;/vault.kcv</text>
   <text x="290" y="246" class="m">the whole profile, encrypted</text>
-  <text x="20" y="272" class="mono">Profiles\&lt;id&gt;\keychain.kck</text>
+  <text x="20" y="272" class="mono">Profiles/&lt;id&gt;/keychain.kck</text>
   <text x="290" y="272" class="m">Keycat Passwords, encrypted</text>
-  <text x="20" y="298" class="mono">Sessions\&lt;id&gt;\</text>
+  <text x="20" y="298" class="mono">Sessions/&lt;id&gt;/</text>
   <text x="290" y="298" class="m">the decrypted copy, only while the profile is open</text>
 </svg>

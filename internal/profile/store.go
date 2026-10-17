@@ -100,6 +100,7 @@ func ReadManifest(path, id string) (*Profile, error) {
 		return nil, fmt.Errorf("profile %s: manifest id mismatch", id)
 	}
 	p.Appearance.Normalize()
+	p.Privacy.Normalize()
 	return &p, nil
 }
 

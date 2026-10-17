@@ -8,11 +8,9 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"keycat/internal/firefox"
@@ -175,44 +173,19 @@ func (u *Updater) InstallLatest(channel string) error {
 }
 
 func (u *Updater) prepare(version, channel string) error {
-	product := "firefox-" + version + "-ssl"
-	url := "https://download.mozilla.org/?product=" + product + "&os=win64&lang=en-US"
 	work := filepath.Join(u.app.Paths.LocalDir, "Update")
 	_ = os.RemoveAll(work)
 	if err := os.MkdirAll(work, 0o700); err != nil {
 		return err
 	}
 	defer os.RemoveAll(work)
-	installer := filepath.Join(work, "firefox-setup.exe")
-
-	u.update(func(i *UpdateInfo) { i.Phase = "download"; i.Progress = 0 })
-	if err := download(url, installer, func(done, total int64) {
-		if total > 0 {
-			u.update(func(i *UpdateInfo) { i.Progress = float64(done) / float64(total) })
-		}
-	}); err != nil {
-		return fmt.Errorf("download failed: %w", err)
-	}
-
-	u.update(func(i *UpdateInfo) { i.Phase = "verify"; i.Progress = 0 })
-	if err := VerifyMozillaSignature(installer); err != nil {
+	src, err := u.fetch(version, work)
+	if err != nil {
 		return err
-	}
-
-	u.update(func(i *UpdateInfo) { i.Phase = "extract" })
-	extracted := filepath.Join(work, "extracted")
-	cmd := exec.Command(installer, "/ExtractDir="+extracted)
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("extracting the installer failed: %w", err)
-	}
-	src := filepath.Join(extracted, "core")
-	if _, err := firefox.DetectCore(src); err != nil {
-		src = extracted
 	}
 	core, err := firefox.DetectCore(src)
 	if err != nil {
-		return errors.New("the downloaded installer did not contain Firefox")
+		return errors.New("the download did not contain Firefox")
 	}
 
 	u.update(func(i *UpdateInfo) { i.Phase = "prepare" })
@@ -252,6 +225,19 @@ func (u *Updater) ApplyStaged() error {
 		return err
 	}
 	u.app.log.Printf("engine updated")
+	return nil
+}
+
+func (u *Updater) download(url, dst string) error {
+	u.update(func(i *UpdateInfo) { i.Phase = "download"; i.Progress = 0 })
+	err := download(url, dst, func(done, total int64) {
+		if total > 0 {
+			u.update(func(i *UpdateInfo) { i.Progress = float64(done) / float64(total) })
+		}
+	})
+	if err != nil {
+		return fmt.Errorf("download failed: %w", err)
+	}
 	return nil
 }
 
@@ -295,27 +281,4 @@ func download(url, dst string, progress func(done, total int64)) error {
 		}
 	}
 	return f.Sync()
-}
-
-func VerifyMozillaSignature(path string) error {
-	script := `$s = Get-AuthenticodeSignature -LiteralPath $env:KEYCAT_VERIFY_PATH; ` +
-		`[pscustomobject]@{ Status = $s.Status.ToString(); Subject = $s.SignerCertificate.Subject } | ConvertTo-Json -Compress`
-	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script)
-	cmd.Env = append(os.Environ(), "KEYCAT_VERIFY_PATH="+path)
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	out, err := cmd.Output()
-	if err != nil {
-		return fmt.Errorf("could not check the installer signature: %w", err)
-	}
-	var res struct{ Status, Subject string }
-	if err := json.Unmarshal(out, &res); err != nil {
-		return fmt.Errorf("could not check the installer signature: %w", err)
-	}
-	if res.Status != "Valid" {
-		return fmt.Errorf("the installer signature is not valid (%s)", res.Status)
-	}
-	if !strings.Contains(res.Subject, "O=Mozilla Corporation") {
-		return fmt.Errorf("the installer is not signed by Mozilla (%s)", res.Subject)
-	}
-	return nil
 }

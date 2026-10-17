@@ -59,6 +59,7 @@ type Privacy struct {
 	WebRTC             string `json:"webrtc"`
 	Fingerprinting     string `json:"fingerprinting"`
 	Letterboxing       bool   `json:"letterboxing"`
+	UserAgent          string `json:"userAgent"`
 	JavaScript         bool   `json:"javascript"`
 	WebGL              bool   `json:"webgl"`
 	Prefetch           bool   `json:"prefetch"`
@@ -152,7 +153,17 @@ func (p *Profile) ValidateIdentity() error {
 	return nil
 }
 
+func (pv *Privacy) Normalize() {
+	if pv.Fingerprinting == "standard" || pv.Fingerprinting == "" {
+		pv.Fingerprinting = "protect"
+	}
+	if pv.UserAgent == "" {
+		pv.UserAgent = "real"
+	}
+}
+
 func (pv *Privacy) Validate() error {
+	pv.Normalize()
 	checks := []error{
 		oneOf("preset", pv.Preset, "balanced", "strict", "paranoid", "custom"),
 		oneOf("trackingProtection", pv.TrackingProtection, "standard", "strict"),
@@ -161,7 +172,8 @@ func (pv *Privacy) Validate() error {
 		oneOf("history", pv.History, "keep", "session", "off"),
 		oneOf("dns", pv.DNS, "system", "doh", "doh-strict"),
 		oneOf("webrtc", pv.WebRTC, "default", "no-leak", "off"),
-		oneOf("fingerprinting", pv.Fingerprinting, "standard", "resist"),
+		oneOf("fingerprinting", pv.Fingerprinting, "block", "protect", "resist"),
+		oneOf("userAgent", pv.UserAgent, "real", "windows", "macos", "linux", "random"),
 		oneOf("referrer", pv.Referrer, "default", "trim", "strict"),
 		oneOf("location", pv.Location, "ask", "block"),
 		oneOf("notifications", pv.Notifications, "ask", "block"),

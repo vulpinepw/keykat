@@ -10,13 +10,14 @@ import (
 	"mime"
 	"net/http"
 	"path"
+	"runtime"
 	"strings"
 	"time"
 
+	"keycat/internal/platform"
 	"keycat/internal/profile"
 	"keycat/internal/session"
 	"keycat/internal/vault"
-	"keycat/internal/winutil"
 )
 
 type ctxKey int
@@ -310,6 +311,7 @@ func (a *App) handleState(w http.ResponseWriter, r *http.Request) {
 		"app": map[string]any{
 			"version":       a.Options.Version,
 			"author":        Author,
+			"platform":      runtime.GOOS,
 			"portable":      a.Paths.Portable,
 			"dataDir":       a.Paths.DataDir,
 			"sessionsDir":   a.Paths.Sessions,
@@ -690,7 +692,7 @@ func (a *App) handleOpenFolder(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "error", "unknown folder")
 		return
 	}
-	if err := winutil.OpenFolder(dir, false); err != nil {
+	if err := platform.OpenFolder(dir, false); err != nil {
 		writeErr(w, err)
 		return
 	}

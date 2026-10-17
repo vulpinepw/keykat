@@ -21,8 +21,10 @@ type Core struct {
 
 var ErrNoCore = errors.New("the browser engine is not installed")
 
-func DetectCore(dir string) (*Core, error) {
-	exe := filepath.Join(dir, "firefox.exe")
+func DetectCore(dir string) (*Core, error) { return InspectCore(dir, Executable) }
+
+func InspectCore(dir, exe string) (*Core, error) {
+	exe = filepath.Join(dir, exe)
 	if _, err := os.Stat(exe); err != nil {
 		return nil, ErrNoCore
 	}
@@ -87,10 +89,11 @@ var skipWhenCopying = map[string]bool{
 	"update_telemetry.json":            true,
 	"distribution":                     true,
 	"postSigningData":                  true,
+	"icons":                            true,
 }
 
 func CopyCore(src, dst string, progress func(done, total int64)) error {
-	if _, err := DetectCore(src); err != nil {
+	if _, err := os.Stat(filepath.Join(src, "application.ini")); err != nil {
 		return fmt.Errorf("%s does not contain a Firefox installation", src)
 	}
 	var total int64
@@ -125,7 +128,11 @@ func CopyCore(src, dst string, progress func(done, total int64)) error {
 		if !d.Type().IsRegular() {
 			return nil
 		}
-		n, err := copyFile(p, target)
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		n, err := copyFile(p, target, info.Mode().Perm())
 		done += n
 		if progress != nil {
 			progress(done, total)
@@ -134,13 +141,13 @@ func CopyCore(src, dst string, progress func(done, total int64)) error {
 	})
 }
 
-func copyFile(src, dst string) (int64, error) {
+func copyFile(src, dst string, perm fs.FileMode) (int64, error) {
 	in, err := os.Open(src)
 	if err != nil {
 		return 0, err
 	}
 	defer in.Close()
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, perm|0o600)
 	if err != nil {
 		return 0, err
 	}

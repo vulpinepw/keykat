@@ -1,3 +1,5 @@
+import { AppConstants } from "resource://gre/modules/AppConstants.sys.mjs";
+
 const lazy = {};
 ChromeUtils.defineESModuleGetters(lazy, {
   KeycatAbout: "resource://keycat/modules/KeycatAbout.sys.mjs",
@@ -298,7 +300,7 @@ export const KeycatUI = {
     const launch = () => {
       try {
         const exe = Services.dirsvc.get("GreD", Ci.nsIFile).parent;
-        exe.append("Keycat.exe");
+        exe.append(AppConstants.platform === "win" ? "Keycat.exe" : "keycat");
         if (exe.exists()) {
           const proc = Cc["@mozilla.org/process/util;1"].createInstance(Ci.nsIProcess);
           proc.init(exe);

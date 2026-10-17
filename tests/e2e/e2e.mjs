@@ -5,7 +5,8 @@ import path from "node:path";
 import { Marionette } from "./marionette.mjs";
 
 const root = path.resolve(import.meta.dirname, "..", "..");
-const exe = process.argv[2] || path.join(root, "dist", "Keycat", "Keycat.exe");
+const windows = process.platform === "win32";
+const exe = process.argv[2] || (windows ? path.join(root, "dist", "Keycat", "Keycat.exe") : path.join(root, "dist", "linux", "keycat", "keycat"));
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "keycat-e2e-"));
 const outDir = path.join(root, "tests", "e2e", "output");
 fs.mkdirSync(outDir, { recursive: true });
@@ -79,7 +80,8 @@ async function inspect(m) {
       "media.peerconnection.ice.no_host", "permissions.default.geo", "keycat.mode",
       "extensions.activeThemeID", "privacy.trackingprotection.enabled", "toolkit.telemetry.unified",
       "keycat.test.marker", "browser.privatebrowsing.autostart", "privacy.resistFingerprinting",
-      "identity.fxaccounts.enabled", "signon.firefoxRelay.feature"];
+      "identity.fxaccounts.enabled", "signon.firefoxRelay.feature", "privacy.fingerprintingProtection",
+      "privacy.trackingprotection.fingerprinting.enabled", "general.useragent.override"];
     const prefs = {};
     for (const n of names) prefs[n] = get(n);
     const brand = Services.strings.createBundle("chrome://branding/locale/brand.properties")
@@ -172,6 +174,8 @@ async function main() {
   check("HTTPS-Only on", p["dom.security.https_only_mode"] === true);
   check("prefetching off", p["network.prefetch-next"] === false);
   check("WebRTC IP leak protection", p["media.peerconnection.ice.no_host"] === true);
+  check("fingerprinting: known fingerprinters blocked, the rest blurred", p["privacy.trackingprotection.fingerprinting.enabled"] === true && p["privacy.fingerprintingProtection"] === true);
+  check("sites are told the real system by default", p["general.useragent.override"] === null);
   check("location blocked by default", p["permissions.default.geo"] === 2);
   check("Firefox profile switcher disabled and locked", p["browser.profiles.enabled"] === false && r.locked.profiles);
   check("telemetry off and locked", p["toolkit.telemetry.unified"] === false && r.locked.telemetry);
@@ -285,11 +289,37 @@ async function main() {
   const liveOn = await waitFor(() => m.exec(`return Services.prefs.getBoolPref("dom.security.https_only_mode") === true;`), 10000, "live setting back").catch(() => false);
   check("privacy change undone live too", liveOn);
 
+  const httpAgent = `const http = Cc["@mozilla.org/network/protocol;1?name=http"].getService(Ci.nsIHttpProtocolHandler);`;
+  const spoof = await api("PATCH", `/api/profiles/${profile.id}`, { privacy: { ...before, preset: "custom", fingerprinting: "block", userAgent: "macos" } });
+  const spoofed = await waitFor(() => m.exec(`${httpAgent}
+    const P = Services.prefs;
+    const version = parseInt(Services.appinfo.version, 10) + ".0";
+    const ok = http.userAgent === "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:" + version + ") Gecko/20100101 Firefox/" + version &&
+      P.getBoolPref("privacy.fingerprintingProtection") === false && P.getBoolPref("privacy.trackingprotection.fingerprinting.enabled") === true;
+    return ok ? http.userAgent : null;`), 10000, "spoofed system").catch(() => null);
+  check("sites are told another system, without a restart", spoof.status === 200 && !!spoofed, spoofed || JSON.stringify(spoof.data));
+  await contentNavigate("about:blank");
+  const seen = await contentExec(`return { ua: navigator.userAgent, platform: navigator.platform, oscpu: navigator.oscpu };`);
+  check("page scripts see the same system", seen.ua === spoofed && seen.platform === "MacIntel" && seen.oscpu === "Intel Mac OS X 10.15", JSON.stringify(seen));
+  await api("PATCH", `/api/profiles/${profile.id}`, { privacy: { ...before, preset: "custom", userAgent: "random" } });
+  const random = await waitFor(() => m.exec(`${httpAgent}
+    return /\\((Windows NT 10\\.0; Win64; x64|Macintosh; Intel Mac OS X 10\\.15|X11; Linux x86_64); rv:/.test(http.userAgent) &&
+      Services.prefs.prefHasUserValue("general.useragent.override") ? http.userAgent : null;`), 10000, "random system").catch(() => null);
+  check("a random system is one of the three", !!random, random);
+  await api("PATCH", `/api/profiles/${profile.id}`, { privacy: before });
+  const real = await waitFor(() => m.exec(`${httpAgent}
+    const P = Services.prefs;
+    const ok = !P.prefHasUserValue("general.useragent.override") && !P.prefHasUserValue("general.platform.override") &&
+      P.getBoolPref("privacy.fingerprintingProtection") === true && !http.userAgent.includes("Macintosh");
+    return ok ? http.userAgent : null;`), 10000, "real system").catch(() => null);
+  check("back to the real system and to blurring", !!real && (windows ? real.includes("Windows NT") : real.includes("X11; Linux")), real);
+
   const branding = await m.exec(`return (async () => {
     const read = async url => (await (await fetch(url)).text());
     const l10n = new Localization(["toolkit/branding/brandings.ftl", "browser/browser.ftl", "browser/appExtensionFields.ftl"], true);
     const [alpenglow] = await l10n.formatValues(["extension-firefox-alpenglow-name"]);
     const P = Services.prefs;
+    const { AppConstants } = ChromeUtils.importESModule("resource://gre/modules/AppConstants.sys.mjs");
     const { ShellService } = ChromeUtils.importESModule("moz-src:///browser/components/shell/ShellService.sys.mjs");
     const provider = name => JSON.parse(P.getStringPref("browser.newtabpage.activity-stream.asrouter.providers." + name));
     const { ASRouter } = ChromeUtils.importESModule("resource:///modules/asrouter/ASRouter.sys.mjs");
@@ -303,7 +333,9 @@ async function main() {
     return {
       bookmarks,
       routerMessages: ASRouter.initialized ? ASRouter.state.messages.map(msg => msg.provider + ":" + msg.id) : null,
-      pin: (await ShellService.doesAppNeedPin()) === false && !String(ShellService.pinToTaskbar).includes("doesAppNeedPin"),
+      pin: AppConstants.platform === "win"
+        ? (await ShellService.doesAppNeedPin()) === false && !String(ShellService.pinToTaskbar).includes("doesAppNeedPin")
+        : P.getBoolPref("browser.gnome-search-provider.enabled") === false && P.prefIsLocked("browser.gnome-search-provider.enabled"),
       messages: P.getBoolPref("browser.bypassAutoTriggerActions") === true && P.prefIsLocked("browser.bypassAutoTriggerActions") &&
         ["onboarding", "cfr", "message-groups", "messaging-experiments"].every(name => provider(name).enabled === false),
       privateLogo: (await read("chrome://browser/skin/privatebrowsing/pbm-logo.svg")).includes("kc-pb"),
@@ -320,12 +352,17 @@ async function main() {
   check("built-in theme and error messages without the Firefox name", branding.alpenglow === "Alpenglow" && branding.appstrings.startsWith("Keycat"), `${branding.alpenglow} / ${branding.appstrings}`);
   check("help links lead to Keycat's page", branding.support === "https://github.com/vulpinepw#", branding.support);
   check("the engine creates no Start menu shortcuts or jump lists", branding.customIcon && branding.shortcut && branding.jumpList);
-  check("the engine never pins itself to the taskbar", branding.pin);
+  check(windows ? "the engine never pins itself to the taskbar" : "the desktop's search cannot read the history", branding.pin);
   check("no Mozilla default bookmarks", !branding.bookmarks.some(t => /firefox|mozilla/i.test(t || "")), JSON.stringify(branding.bookmarks));
   check("no Firefox onboarding, tours or silent first-start actions", branding.messages && Array.isArray(branding.routerMessages) && branding.routerMessages.length === 0,
     JSON.stringify(branding.routerMessages));
-  const visual = path.join(path.dirname(exe), "core", "browser", "VisualElements", "VisualElements_70.png");
-  check("notification icon is Keycat's", fs.existsSync(visual) && fs.readFileSync(visual).equals(fs.readFileSync(path.join(root, "browser", "core", "browser", "VisualElements", "VisualElements_70.png"))));
+  if (windows) {
+    const visual = path.join(path.dirname(exe), "core", "browser", "VisualElements", "VisualElements_70.png");
+    check("notification icon is Keycat's", fs.existsSync(visual) && fs.readFileSync(visual).equals(fs.readFileSync(path.join(root, "browser", "core", "browser", "VisualElements", "VisualElements_70.png"))));
+  } else {
+    const icon = path.join(path.dirname(exe), "core", "browser", "chrome", "icons", "default", "default48.png");
+    check("window icon is Keycat's", fs.existsSync(icon) && fs.readFileSync(icon).equals(fs.readFileSync(path.join(root, "browser", "branding", "icons", "default48.png"))));
+  }
 
   await m.exec(`Services.prefs.setStringPref("keycat.test.marker", "survives-encryption"); Services.prefs.savePrefFile(null);`);
   m.close();

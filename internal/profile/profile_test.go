@@ -140,6 +140,65 @@ func TestProxyAndCustomDNS(t *testing.T) {
 	}
 }
 
+func TestFingerprintingAndUserAgent(t *testing.T) {
+	p := newTestProfile(t, "balanced")
+	if p.Privacy.Fingerprinting != "protect" || p.Privacy.UserAgent != "real" {
+		t.Fatalf("balanced: fingerprinting %q, user agent %q", p.Privacy.Fingerprinting, p.Privacy.UserAgent)
+	}
+	summary := func(p *Profile, label string) string {
+		for _, it := range Summary(p) {
+			if it.Label == label {
+				return it.Value
+			}
+		}
+		return ""
+	}
+	p.Privacy.UserAgent = "macos"
+	if err := p.Privacy.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if got := summary(p, "User agent"); got != "macOS (spoofed)" {
+		t.Errorf("user agent summary %q", got)
+	}
+	p.Privacy.Fingerprinting = "resist"
+	if got := summary(p, "User agent"); got != "Standard Firefox" {
+		t.Errorf("user agent summary with resist %q", got)
+	}
+	for _, bad := range []func(*Privacy){
+		func(pv *Privacy) { pv.UserAgent = "android" },
+		func(pv *Privacy) { pv.Fingerprinting = "off" },
+	} {
+		pv := p.Privacy
+		bad(&pv)
+		if err := pv.Validate(); err == nil {
+			t.Errorf("invalid privacy accepted: %q %q", pv.Fingerprinting, pv.UserAgent)
+		}
+	}
+}
+
+func TestOlderSettingsAreUpgraded(t *testing.T) {
+	s, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := newTestProfile(t, "strict")
+	p.Privacy.Fingerprinting = "standard"
+	p.Privacy.UserAgent = ""
+	if err := s.Save(p); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Get(p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Privacy.Fingerprinting != "protect" || got.Privacy.UserAgent != "real" {
+		t.Errorf("upgraded to %q and %q", got.Privacy.Fingerprinting, got.Privacy.UserAgent)
+	}
+	if err := got.Privacy.Validate(); err != nil {
+		t.Error(err)
+	}
+}
+
 func TestUserJSRendering(t *testing.T) {
 	ps := PrefSet{Set: map[string]any{
 		"a.bool": true, "b.int": 5, "c.string": `quote " and \ backslash`,

@@ -197,10 +197,11 @@ export function openEditor(id, initialTab = "profile", options = {}) {
           has("recovery")
             ? [btn("New code", "refresh", () => showAction("recovery-new")), btn("Remove", "trash", () => showAction("recovery-remove"))]
             : [btn("Create", "plus", () => showAction("recovery-new"))]),
-        actionRow("Windows account", has("windows") ? "This profile opens without a password while you are signed in to Windows." : "Open this profile without typing a password while signed in to Windows.",
-          has("windows")
-            ? [btn("Turn off", "power", () => showAction("windows-off"))]
-            : state.app.windowsUnlock ? [btn("Turn on", "windows", () => showAction("windows-on"))] : [])
+        (has("windows") || state.app.windowsUnlock) &&
+          actionRow("Windows account", has("windows") ? "This profile opens without a password while you are signed in to Windows." : "Open this profile without typing a password while signed in to Windows.",
+            has("windows")
+              ? [btn("Turn off", "power", () => showAction("windows-off"))]
+              : [btn("Turn on", "windows", () => showAction("windows-on"))])
       ),
       section("Cipher",
         actionRow("Change encryption", "Re-encrypts the vault with another cipher or key derivation. Takes a few seconds.",

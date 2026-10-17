@@ -1,8 +1,10 @@
 param(
-  [string]$Version = "1.1.1",
+  [string]$Version = "1.2.0",
   [string]$FirefoxDir = "",
+  [string]$LinuxFirefox = "",
   [switch]$SkipTests,
-  [switch]$Installer
+  [switch]$Installer,
+  [switch]$Linux
 )
 
 $ErrorActionPreference = "Stop"
@@ -84,10 +86,14 @@ try {
   if (-not $SkipTests) {
     Invoke-Go vet ./...
     Invoke-Go test ./internal/... ./tools/... ./cmd/...
+    if ($Linux) {
+      $env:GOOS = "linux"
+      try { Invoke-Go vet ./... } finally { $env:GOOS = $null }
+    }
   }
 
   $src = $root
-  if ($Installer) {
+  if ($Installer -or $Linux) {
     $src = Join-Path $root "build\stage"
     if (Test-Path $src) { Remove-Item -Recurse -Force $src }
     New-Item -ItemType Directory -Force $src | Out-Null
@@ -152,7 +158,7 @@ if ($Installer) {
   try {
     Invoke-Go build -trimpath -ldflags "-H=windowsgui -s -w -X main.version=$Version" -o (Join-Path $dist "uninstall.exe") ./cmd/keycat-setup
     Invoke-Go run ./tools/mkpayload -src $dist -out (Join-Path $src "cmd\keycat-setup\payload.bin") -version $Version
-    $setup = Join-Path $root "dist\KeycatSetup-$Version.exe"
+    $setup = Join-Path $root "dist\KeycatSetup.exe"
     Invoke-Go build -tags payload -trimpath -ldflags "-H=windowsgui -s -w -X main.version=$Version" -o $setup ./cmd/keycat-setup
   } finally {
     Pop-Location
@@ -160,4 +166,27 @@ if ($Installer) {
   }
   $mb = [Math]::Round((Get-Item $setup).Length / 1MB, 1)
   Write-Host "installer: $setup ($mb MB)"
+}
+
+if ($Linux) {
+  if (-not $LinuxFirefox -or -not (Test-Path $LinuxFirefox)) {
+    throw "Pass -LinuxFirefox with Firefox for Linux: firefox-<version>.tar.xz from archive.mozilla.org."
+  }
+  $firefoxTarball = (Resolve-Path $LinuxFirefox).Path
+  $program = Join-Path $root "build\linux\keycat"
+  $tarball = Join-Path $root "dist\keycat-linux-x86_64.tar.gz"
+  Push-Location $src
+  try {
+    $env:GOOS = "linux"; $env:GOARCH = "amd64"; $env:CGO_ENABLED = "0"
+    try {
+      Invoke-Go build -trimpath -ldflags "-s -w -X main.version=$Version" -o $program ./cmd/keycat
+    } finally {
+      $env:GOOS = $null; $env:GOARCH = $null; $env:CGO_ENABLED = $null
+    }
+    Invoke-Go run ./tools/mktarball -firefox $firefoxTarball -keycat $program -root $root -dir (Join-Path $root "dist\linux\keycat") -out $tarball
+  } finally {
+    Pop-Location
+  }
+  $mb = [Math]::Round((Get-Item $tarball).Length / 1MB, 1)
+  Write-Host "linux package: $tarball ($mb MB)"
 }

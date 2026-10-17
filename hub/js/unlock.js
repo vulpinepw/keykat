@@ -23,7 +23,7 @@ export function openUnlock(id, mode = "open", extra = {}) {
   return new Promise(resolve => {
     const p = store.profile(id);
     const cfg = MODES[mode];
-    const slots = p.security.unlock;
+    const slots = p.security.unlock.filter(s => s !== "windows" || store.state.app.windowsUnlock);
     let method = slots.includes("password") ? "password" : slots.includes("windows") ? "windows" : "recovery";
     let succeeded = false;
     let unsubscribe = () => {};

@@ -324,6 +324,12 @@ func main() {
 	writeFile(filepath.Join(icons, "main-window.ico"), appIcon)
 	writeFile(filepath.Join(icons, "default.ico"), appIcon)
 	writeFile(filepath.Join(root, "cmd", "keycat", "keycat.ico"), appIcon)
+	for _, s := range []int{16, 32, 48, 64, 128} {
+		writeFile(filepath.Join(icons, fmt.Sprintf("default%d.png", s)), encodePNG(render(s, true)))
+	}
+	for _, s := range []int{16, 24, 32, 48, 64, 128, 256, 512} {
+		writeFile(filepath.Join(root, "linux", "icons", fmt.Sprintf("keycat-%d.png", s)), encodePNG(render(s, true)))
+	}
 
 	art := filepath.Join(root, "browser", "branding", "art")
 	writeFile(filepath.Join(art, "logo.png"), encodePNG(render(256, false)))

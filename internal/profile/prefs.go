@@ -3,6 +3,7 @@ package profile
 import (
 	"encoding/json"
 	"fmt"
+	"runtime"
 	"sort"
 	"strings"
 )
@@ -340,12 +341,26 @@ func Summary(p *Profile) []SummaryItem {
 		"no-leak": item("WebRTC", "IP leak protection", "good"),
 		"off":     item("WebRTC", "Disabled", "good"),
 	}[pv.WebRTC])
-	if pv.Fingerprinting == "resist" {
-		out = append(out, item("Fingerprinting", "Resist (uniform browser)", "good"))
-	} else if pv.TrackingProtection == "strict" {
+	switch pv.Fingerprinting {
+	case "resist":
+		out = append(out, item("Fingerprinting", "Resisted (uniform browser)", "good"))
+	case "protect":
+		out = append(out, item("Fingerprinting", "Blocked and blurred", "good"))
+	default:
 		out = append(out, item("Fingerprinting", "Known fingerprinters blocked", "ok"))
-	} else {
-		out = append(out, item("Fingerprinting", "Basic", "off"))
+	}
+	systems := map[string]string{"windows": "Windows", "macos": "macOS", "linux": "Linux"}
+	switch {
+	case pv.Fingerprinting == "resist":
+		out = append(out, item("User agent", "Standard Firefox", "good"))
+	case pv.UserAgent == "random":
+		out = append(out, item("User agent", "A random system", "good"))
+	case pv.UserAgent == runtime.GOOS:
+		out = append(out, item("User agent", systems[pv.UserAgent], "ok"))
+	case systems[pv.UserAgent] != "":
+		out = append(out, item("User agent", systems[pv.UserAgent]+" (spoofed)", "good"))
+	default:
+		out = append(out, item("User agent", "This system", "ok"))
 	}
 	if pv.UBlockOrigin {
 		out = append(out, item("Ad blocker", "uBlock Origin", "good"))

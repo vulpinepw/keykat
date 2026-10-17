@@ -43,7 +43,7 @@
   <text x="20" y="222">recovery code</text>
   <text x="20" y="242" class="m">160 random bits</text>
   <text x="20" y="276">Windows account</text>
-  <text x="20" y="296" class="m">DPAPI</text>
+  <text x="20" y="296" class="m">DPAPI, on Windows</text>
 
   <path class="ln" d="M190 172 L318 215" marker-end="url(#tip)"/>
   <path class="ln" d="M190 226 L318 226" marker-end="url(#tip)"/>

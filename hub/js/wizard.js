@@ -173,7 +173,7 @@ export function openWizard() {
     if (index === 1 && draft.security.mode === "encrypted") {
       const pw = password?.value || "";
       if (!pw && !draft.security.windowsUnlock) {
-        return "Choose a password, or turn on Windows account unlock.";
+        return state.app.windowsUnlock ? "Choose a password, or turn on Windows account unlock." : "Choose a password.";
       }
       if (pw && pw.length < 8) {
         return "The password must be at least 8 characters.";
@@ -244,7 +244,7 @@ export function openWizard() {
         password.node,
         h("div", { class: "panel" },
           switchRow({ title: "Create a recovery code", hint: "A one-time code that unlocks the profile if you forget the password", checked: sec.recovery, onchange: on => (sec.recovery = on) }),
-          switchRow({ title: "Unlock with my Windows account", hint: state.app.windowsUnlock ? "Convenient: anyone signed in to your Windows account can open this profile" : "Not available on this system", checked: sec.windowsUnlock, disabled: !state.app.windowsUnlock, onchange: on => (sec.windowsUnlock = on) }),
+          state.app.windowsUnlock && switchRow({ title: "Unlock with my Windows account", hint: "Convenient: anyone signed in to your Windows account can open this profile", checked: sec.windowsUnlock, onchange: on => (sec.windowsUnlock = on) }),
           switchRow({ title: "Keep a backup of the previous vault", hint: "One older copy is kept in case the newest one is damaged", checked: sec.keepBackup, onchange: on => (sec.keepBackup = on) })
         )
       );

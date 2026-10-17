@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"keycat"
 	"keycat/internal/app"
 	"keycat/internal/firefox"
-	"keycat/internal/winutil"
+	"keycat/internal/platform"
 )
 
 var version = "1.0.0-dev"
@@ -21,7 +22,25 @@ func main() {
 	setupCore := flag.String("setup-core", "", "copy the Firefox engine from a Firefox installation `dir`, install the Keycat layer, and exit")
 	applyLayer := flag.Bool("apply-layer", false, "re-install the Keycat layer into the engine and exit")
 	waitPID := flag.Int("wait-pid", 0, "wait for this process to exit before starting (used when Keycat restarts itself)")
+	quit := flag.Bool("quit", false, "close a running Keycat, locking its open profiles first, and exit")
+	showVersion := flag.Bool("version", false, "print the version of Keycat and exit")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println(version)
+		return
+	}
+	if *quit {
+		closed, err := app.QuitRunning(5*time.Minute, func(s string) { fmt.Println(s) })
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "keycat:", err)
+			os.Exit(1)
+		}
+		if closed {
+			fmt.Println("Keycat is closed")
+		}
+		return
+	}
 
 	if *waitPID > 0 {
 		if proc, err := os.FindProcess(*waitPID); err == nil {
@@ -85,7 +104,7 @@ func setup(a *app.App, src string) error {
 
 func fail(opts app.Options, err error) {
 	if !opts.NoHub {
-		winutil.ShowError("Keycat", err.Error())
+		platform.ShowError("Keycat", err.Error())
 	}
 	fmt.Fprintln(os.Stderr, "keycat:", err)
 	os.Exit(1)

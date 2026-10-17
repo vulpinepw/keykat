@@ -5,7 +5,8 @@ import path from "node:path";
 import { Marionette } from "./marionette.mjs";
 
 const root = path.resolve(import.meta.dirname, "..", "..");
-const exe = process.argv[2] || path.join(root, "dist", "Keycat", "Keycat.exe");
+const windows = process.platform === "win32";
+const exe = process.argv[2] || (windows ? path.join(root, "dist", "Keycat", "Keycat.exe") : path.join(root, "dist", "linux", "keycat", "keycat"));
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "keycat-import-"));
 const edgeDir = fs.mkdtempSync(path.join(os.tmpdir(), "keycat-fake-edge-"));
 const PASSWORD = "correct horse battery staple";
@@ -73,22 +74,34 @@ async function main() {
   const run = await m.exec(`return (async () => {
     const folder = ${JSON.stringify(path.join(edgeDir, "Default"))};
     await IOUtils.makeDirectory(folder);
-    const { OSCrypto } = ChromeUtils.importESModule("resource://gre/modules/OSCrypto_win.sys.mjs");
-    const { ChromeMigrationUtils } = ChromeUtils.importESModule("resource:///modules/ChromeMigrationUtils.sys.mjs");
-    const { ChromeWindowsLoginCrypto } = ChromeUtils.importESModule("resource:///modules/ChromeWindowsLoginCrypto.sys.mjs");
     const { ChromiumEdgeMigrator } = ChromeUtils.importESModule("resource:///modules/ChromeProfileMigrator.sys.mjs");
     const { KeycatImport } = ChromeUtils.importESModule("resource://keycat/modules/KeycatImport.sys.mjs");
     const { Sqlite } = ChromeUtils.importESModule("resource://gre/modules/Sqlite.sys.mjs");
-
-    const key = "keycat-test-key-0123456789abcdef".slice(0, 32);
-    const os = new OSCrypto();
-    const protectedKey = os.encryptData(key);
-    os.finalize();
-    ChromeMigrationUtils.getLocalState = async () => ({ os_crypt: { encrypted_key: btoa("DPAPI" + protectedKey) } });
-    const crypto = new ChromeWindowsLoginCrypto("Edge");
     const blob = s => Uint8Array.from(s, c => c.charCodeAt(0));
-    const v10 = async pw => blob(await crypto.encryptData(pw, "v10"));
-    const v20 = blob("v20") ;
+
+    let v10, finalize = () => {}, locked;
+    if (${windows}) {
+      const { OSCrypto } = ChromeUtils.importESModule("resource://gre/modules/OSCrypto_win.sys.mjs");
+      const { ChromeMigrationUtils } = ChromeUtils.importESModule("resource:///modules/ChromeMigrationUtils.sys.mjs");
+      const { ChromeWindowsLoginCrypto } = ChromeUtils.importESModule("resource:///modules/ChromeWindowsLoginCrypto.sys.mjs");
+      const key = "keycat-test-key-0123456789abcdef".slice(0, 32);
+      const os = new OSCrypto();
+      const protectedKey = os.encryptData(key);
+      os.finalize();
+      ChromeMigrationUtils.getLocalState = async () => ({ os_crypt: { encrypted_key: btoa("DPAPI" + protectedKey) } });
+      const loginCrypto = new ChromeWindowsLoginCrypto("Edge");
+      v10 = async pw => blob(await loginCrypto.encryptData(pw, "v10"));
+      finalize = () => loginCrypto.finalize();
+      locked = blob("v20");
+    } else {
+      const text = new TextEncoder();
+      const base = await crypto.subtle.importKey("raw", text.encode("peanuts"), "PBKDF2", false, ["deriveKey"]);
+      const key = await crypto.subtle.deriveKey({ name: "PBKDF2", salt: text.encode("saltysalt"), iterations: 1, hash: "SHA-1" },
+        base, { name: "AES-CBC", length: 128 }, false, ["encrypt"]);
+      v10 = async pw => Uint8Array.from([...blob("v10"),
+        ...new Uint8Array(await crypto.subtle.encrypt({ name: "AES-CBC", iv: new Uint8Array(16).fill(0x20) }, key, text.encode(pw)))]);
+      locked = blob("v11");
+    }
 
     const makeDb = async (name, rows) => {
       const db = await Sqlite.openConnection({ path: PathUtils.join(folder, name) });
@@ -104,14 +117,14 @@ async function main() {
       { origin: "https://mail.example/login", user: "me", pw: await v10("from-edge") },
       { origin: "https://shop.example/", action: "javascript:void(0)", user: "buyer", pw: await v10("shop-pw") },
       { origin: "https://router.example/", realm: "https://router.example/Admin area", scheme: 1, user: "admin", pw: await v10("router-pw") },
-      { origin: "https://bank.example/", user: "client", pw: Uint8Array.from([...v20, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]) },
+      { origin: "https://bank.example/", user: "client", pw: Uint8Array.from([...locked, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]) },
       { origin: "android://hash@com.example.app/", user: "app", pw: await v10("app-pw") },
       { origin: "https://never.example/", user: "", pw: new Uint8Array(0), never: true },
     ]);
     await makeDb("Login Data For Account", [
       { origin: "https://account.example/", user: "synced", pw: await v10("account-pw") },
     ]);
-    crypto.finalize();
+    finalize();
 
     const resource = await new ChromiumEdgeMigrator()._GetPasswordsResource(folder);
     const ok = await new Promise(resolve => resource.migrate(resolve));
@@ -125,7 +138,8 @@ async function main() {
     return { ok, unreadable, from, label: String(label), buttons, leftInFirefox };
   })();`);
   check("Edge passwords imported", run.ok === true);
-  check("the password only Edge can read is counted, nothing else", run.unreadable === 1 && run.from === "Microsoft Edge", JSON.stringify({ unreadable: run.unreadable, from: run.from }));
+  check(windows ? "the password only Edge can read is counted, nothing else" : "the password whose key is in the keyring is counted, nothing else",
+    run.unreadable === 1 && run.from === "Microsoft Edge", JSON.stringify({ unreadable: run.unreadable, from: run.from }));
   check("Keycat explains how to bring it over", /could not be read: Microsoft Edge/.test(run.label) && /Export passwords/.test(run.label), run.label.slice(0, 120));
   check("notification offers the CSV import", run.buttons.some(b => /CSV/.test(b)), JSON.stringify(run.buttons));
   check("nothing left in the browser's own store", run.leftInFirefox === 0);

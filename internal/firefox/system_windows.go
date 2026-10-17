@@ -3,11 +3,34 @@
 package firefox
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 
+	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 )
+
+const Executable = "firefox.exe"
+
+func systemArgs(headless bool) []string {
+	return []string{"-wait-for-browser"}
+}
+
+func ProfileInUse(dir string) bool {
+	f, err := os.OpenFile(filepath.Join(dir, "parent.lock"), os.O_RDWR, 0)
+	if err == nil {
+		f.Close()
+		return false
+	}
+	if errors.Is(err, fs.ErrNotExist) {
+		return false
+	}
+	return errors.Is(err, windows.ERROR_SHARING_VIOLATION) ||
+		errors.Is(err, windows.ERROR_LOCK_VIOLATION) ||
+		errors.Is(err, windows.ERROR_ACCESS_DENIED)
+}
 
 func FindSystemFirefox() string {
 	for _, root := range []registry.Key{registry.LOCAL_MACHINE, registry.CURRENT_USER} {

@@ -1,3 +1,4 @@
+import { AppConstants } from "resource://gre/modules/AppConstants.sys.mjs";
 import { setTimeout } from "resource://gre/modules/Timer.sys.mjs";
 
 const lazy = {};
@@ -62,6 +63,7 @@ export const KeycatBoot = {
           Services.obs.removeObserver(this, topic);
           if (this.config) {
             lazy.KeycatProfile.resetPrefs(this.config.resetPrefs);
+            lazy.KeycatPrefs.applyUserAgent(this.config.privacy);
             this.registerActors();
           }
           break;
@@ -90,8 +92,10 @@ export const KeycatBoot = {
 
   onUIStartup() {
     this.registerSheets();
-    this.disablePinning();
-    this.disableJumpLists();
+    if (AppConstants.platform === "win") {
+      this.disablePinning();
+      this.disableJumpLists();
+    }
     if (this.mode !== "unmanaged") {
       lazy.KeycatThemes.activate(this.themeSetting()).catch(ex => console.error("Keycat themes:", ex));
     }
@@ -226,6 +230,7 @@ export const KeycatBoot = {
     this.config = cmd.config;
     lazy.KeycatPrefs.applyProfileDefaults(cmd.config);
     lazy.KeycatPrefs.applyLive(cmd.prefs || {}, cmd.reset || []);
+    lazy.KeycatPrefs.applyUserAgent(cmd.config.privacy);
     const privacy = cmd.config.privacy || {};
     if (privacy.searchEngine !== before.privacy?.searchEngine) {
       lazy.KeycatProfile.applySearchEngine(privacy.searchEngine).catch(ex => console.error("Keycat search:", ex));

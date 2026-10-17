@@ -197,6 +197,10 @@ function chips(p) {
   } else if (pv.proxy && pv.proxy.mode !== "none") {
     out.push(h("span", { class: "chip", text: "Proxy" }));
   }
+  const spoofed = { windows: "Spoofs Windows", macos: "Spoofs macOS", linux: "Spoofs Linux", random: "Random system" }[pv.userAgent];
+  if (spoofed && pv.fingerprinting !== "resist") {
+    out.push(h("span", { class: "chip", text: spoofed }));
+  }
   if (pv.dns !== "system") {
     out.push(h("span", { class: "chip", text: "Encrypted DNS" }));
   }
@@ -309,7 +313,7 @@ function editProfile(p, tab) {
 export async function openProfile(p, extra = {}) {
   if (p.security.mode === "encrypted") {
     const unlock = p.security.unlock;
-    if (!unlock.includes("password") && unlock.includes("windows")) {
+    if (!unlock.includes("password") && unlock.includes("windows") && store.state.app.windowsUnlock) {
       try {
         await api("POST", `/api/profiles/${p.id}/open`, { method: "windows", ...extra });
       } catch (err) {

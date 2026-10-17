@@ -1,8 +1,10 @@
 //go:build windows
 
-package winutil
+package platform
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os/exec"
 	"sync"
 	"syscall"
@@ -40,6 +42,8 @@ const (
 	mbYesNo        = 0x04
 	idYes          = 6
 )
+
+const RaisesWindows = true
 
 var (
 	enumMu    sync.Mutex
@@ -113,8 +117,9 @@ func ShuttingDown() bool {
 	return r != 0
 }
 
-func SingleInstance(name string) (release func(), first bool, err error) {
-	n, err := windows.UTF16PtrFromString(name)
+func SingleInstance(dataDir, localDir string) (release func(), first bool, err error) {
+	sum := sha256.Sum256([]byte(dataDir))
+	n, err := windows.UTF16PtrFromString(`Local\Keycat-` + hex.EncodeToString(sum[:8]))
 	if err != nil {
 		return nil, false, err
 	}

@@ -1,3 +1,4 @@
+import { AppConstants } from "resource://gre/modules/AppConstants.sys.mjs";
 import { setTimeout } from "resource://gre/modules/Timer.sys.mjs";
 
 const API = Services.env.get("KEYCAT_API");
@@ -37,6 +38,9 @@ async function call(method, path, body, signal) {
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 function allowForeground() {
+  if (AppConstants.platform !== "win") {
+    return;
+  }
   try {
     const { ctypes } = ChromeUtils.importESModule("resource://gre/modules/ctypes.sys.mjs");
     const user32 = ctypes.open("user32.dll");

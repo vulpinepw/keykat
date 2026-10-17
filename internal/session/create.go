@@ -136,6 +136,9 @@ func (m *Manager) Create(req CreateRequest) (*profile.Profile, string, *vault.Se
 			return nil, "", nil, err
 		}
 		if sec.Password == "" && !sec.WindowsUnlock {
+			if !vault.WindowsUnlockAvailable() {
+				return nil, "", nil, errors.New("an encrypted profile needs a password")
+			}
 			return nil, "", nil, errors.New("an encrypted profile needs a password or Windows account unlock")
 		}
 		if sec.Password != "" {

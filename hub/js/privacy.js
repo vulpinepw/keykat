@@ -2,10 +2,14 @@ import { h, icon, segmented, selectRow, switchRow } from "./dom.js";
 import { choiceCards, section } from "./views.js";
 
 const PRESET_CARDS = [
-  { value: "balanced", title: "Balanced", icon: "shield", iconCls: "info", tag: "Recommended", desc: "Strict tracker blocking, HTTPS-Only and encrypted DNS. Sites keep working." },
+  { value: "balanced", title: "Balanced", icon: "shield", iconCls: "info", tag: "Recommended", desc: "Blocks trackers and fingerprinting, HTTPS-Only, encrypted DNS. Sites keep working." },
   { value: "strict", title: "Strict", icon: "shieldCheck", desc: "Also blocks third-party cookies, keeps cache in memory and erases history on close." },
   { value: "paranoid", title: "Paranoid", icon: "fingerprint", iconCls: "good", desc: "Always private, resists fingerprinting, no WebRTC, WebGL or cache. Some sites break." },
 ];
+
+const userAgentHint = v => v.fingerprinting === "resist"
+  ? "Resisting fingerprinting sends the standard Firefox user agent of this system instead"
+  : "What the browser tells sites about your system, in its user agent and to their scripts. It still says it is Firefox";
 
 export function privacyEditor({ value, presets, mode, onChange }) {
   let v = structuredClone(value);
@@ -39,6 +43,8 @@ export function privacyEditor({ value, presets, mode, onChange }) {
   const dynamic = {};
   function refresh() {
     dynamic.letterbox.querySelector("input").disabled = v.fingerprinting !== "resist";
+    dynamic.userAgent.querySelector("select").disabled = v.fingerprinting === "resist";
+    dynamic.userAgent.querySelector(".hint").textContent = userAgentHint(v);
     dynamic.dnsProvider.hidden = v.dns === "system";
     dynamic.dnsCustom.hidden = v.dns === "system" || v.dnsProvider !== "custom";
     const proxyFields = v.proxy.mode === "socks5" || v.proxy.mode === "http";
@@ -56,6 +62,13 @@ export function privacyEditor({ value, presets, mode, onChange }) {
       hint: "Rounds the page size so window size cannot identify you",
       checked: v.letterboxing,
       onchange: on => set("letterboxing", on),
+    });
+    dynamic.userAgent = selectRow({
+      title: "System shown to sites",
+      hint: userAgentHint(v),
+      value: v.userAgent,
+      onchange: val => set("userAgent", val),
+      options: [["real", "The real one"], ["windows", "Windows"], ["macos", "macOS"], ["linux", "Linux"], ["random", "A random one each time the profile opens"]],
     });
     dynamic.dnsProvider = selectRow({
       title: "DNS provider",
@@ -89,7 +102,7 @@ export function privacyEditor({ value, presets, mode, onChange }) {
       section("Blocking",
         h("div", { class: "toggle-row" },
           h("span", { class: "text" }, h("div", { class: "title", text: "Tracking protection" }),
-            h("div", { class: "hint", text: "Strict also blocks fingerprinters, cryptominers and tracking content" })),
+            h("div", { class: "hint", text: "Strict also blocks cryptominers and tracking content in every window" })),
           segmented([["standard", "Standard"], ["strict", "Strict"]], v.trackingProtection, val => set("trackingProtection", val), "Tracking protection")
         ),
         switchRow({ title: "Ad blocker", hint: "uBlock Origin, installed from the add-on store and checked before it is installed", checked: v.ublockOrigin, onchange: on => set("ublockOrigin", on) }),
@@ -98,10 +111,13 @@ export function privacyEditor({ value, presets, mode, onChange }) {
           options: [["partitioned", "Isolate per site"], ["block-third-party", "Block third-party cookies"], ["session", "Delete when the profile closes"], ["block-all", "Block all cookies (breaks most sites)"]],
         }),
         selectRow({
-          title: "Fingerprinting", value: v.fingerprinting, onchange: val => set("fingerprinting", val),
-          options: [["standard", "Block known fingerprinters"], ["resist", "Resist fingerprinting (uniform browser)"]],
+          title: "Fingerprinting",
+          hint: "Sites can recognise a browser from its screen, fonts, graphics and settings, without any cookie",
+          value: v.fingerprinting, onchange: val => set("fingerprinting", val),
+          options: [["block", "Block known fingerprinters"], ["protect", "Block them and blur what others measure"], ["resist", "Resist fingerprinting (uniform browser)"]],
         }),
         dynamic.letterbox,
+        dynamic.userAgent,
         switchRow({ title: "Global Privacy Control", hint: "Tells sites not to sell or share your data", checked: v.gpc, onchange: on => set("gpc", on) })
       ),
       section("Storage and history",

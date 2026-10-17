@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
-	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
@@ -24,9 +23,9 @@ import (
 	"keycat/internal/events"
 	"keycat/internal/firefox"
 	"keycat/internal/keychain"
+	"keycat/internal/platform"
 	"keycat/internal/profile"
 	"keycat/internal/session"
-	"keycat/internal/winutil"
 )
 
 const Author = "tordev"
@@ -158,8 +157,7 @@ type launcherInfo struct {
 func (a *App) launcherFile() string { return filepath.Join(a.Paths.LocalDir, "launcher.json") }
 
 func (a *App) Run() error {
-	sum := sha256.Sum256([]byte(a.Paths.DataDir))
-	release, first, err := winutil.SingleInstance(`Local\Keycat-` + hex.EncodeToString(sum[:8]))
+	release, first, err := platform.SingleInstance(a.Paths.DataDir, a.Paths.LocalDir)
 	if err != nil {
 		return err
 	}
@@ -178,7 +176,7 @@ func (a *App) Run() error {
 	if err := a.ensureLayer(); err != nil {
 		a.log.Printf("layer: %v", err)
 		if !a.Options.NoHub {
-			winutil.ShowError("Keycat", "Keycat could not prepare its browser engine:\n\n"+err.Error())
+			platform.ShowError("Keycat", "Keycat could not prepare its browser engine:\n\n"+err.Error())
 		}
 		return err
 	}
@@ -192,7 +190,7 @@ func (a *App) Run() error {
 	}
 	if !a.Options.NoHub {
 		if err := a.Hub.Show(); err != nil {
-			winutil.ShowError("Keycat", "Keycat could not open its window:\n\n"+err.Error())
+			platform.ShowError("Keycat", "Keycat could not open its window:\n\n"+err.Error())
 			a.shutdown()
 		}
 	}
@@ -209,7 +207,7 @@ func (a *App) forwardToRunning() error {
 	if err := json.Unmarshal(data, &info); err != nil {
 		return err
 	}
-	winutil.AllowAnyForeground()
+	platform.AllowAnyForeground()
 	req, _ := http.NewRequest("POST", info.URL+"/api/hub/show", bytes.NewReader([]byte("{}")))
 	req.Header.Set("Authorization", "Bearer "+info.Token)
 	req.Header.Set("Content-Type", "application/json")
@@ -220,6 +218,56 @@ func (a *App) forwardToRunning() error {
 	}
 	resp.Body.Close()
 	return nil
+}
+
+func QuitRunning(timeout time.Duration, status func(string)) (bool, error) {
+	paths, err := LocatePaths()
+	if err != nil {
+		return false, err
+	}
+	if !instanceRunning(paths) {
+		return false, nil
+	}
+	var info launcherInfo
+	for i := 0; ; i++ {
+		data, err := os.ReadFile(filepath.Join(paths.LocalDir, "launcher.json"))
+		if err == nil && json.Unmarshal(data, &info) == nil {
+			break
+		}
+		if i == 20 || !instanceRunning(paths) {
+			return true, errors.New("Keycat is running but does not answer")
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+	status("Locking your open profiles and closing Keycat")
+	req, _ := http.NewRequest("POST", info.URL+"/api/quit", bytes.NewReader([]byte("{}")))
+	req.Header.Set("Authorization", "Bearer "+info.Token)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := (&http.Client{Timeout: 10 * time.Second}).Do(req)
+	if err != nil {
+		return true, fmt.Errorf("Keycat did not answer: %w", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return true, fmt.Errorf("Keycat did not quit (%s)", resp.Status)
+	}
+	deadline := time.Now().Add(timeout)
+	for instanceRunning(paths) {
+		if time.Now().After(deadline) {
+			return true, errors.New("Keycat is still encrypting your profiles")
+		}
+		time.Sleep(300 * time.Millisecond)
+	}
+	return true, nil
+}
+
+func instanceRunning(p *Paths) bool {
+	release, first, err := platform.SingleInstance(p.DataDir, p.LocalDir)
+	if err != nil {
+		return false
+	}
+	release()
+	return !first
 }
 
 func (a *App) startServer() error {
@@ -277,7 +325,7 @@ func (a *App) returnToHub(st session.Status) {
 	if a.Options.NoHub || a.Sessions.OpenCount() > 0 || !a.returnPending.Swap(false) {
 		return
 	}
-	if a.quitting.Load() || winutil.ShuttingDown() {
+	if a.quitting.Load() || platform.ShuttingDown() {
 		return
 	}
 	a.log.Printf("profile %s %s, no profile open: showing the profiles window", st.ProfileID, st.State)
@@ -332,20 +380,20 @@ func (a *App) ensureCore() error {
 	if sys := firefox.FindSystemFirefox(); sys != "" {
 		c, _ := firefox.DetectCore(sys)
 		msg := fmt.Sprintf("Keycat runs on the Firefox engine.\n\nSet it up now by copying Firefox %s from:\n%s\n\nYour installed Firefox and its profiles are not changed.", c.Version, sys)
-		if winutil.AskYesNo("Keycat setup", msg) {
+		if platform.AskYesNo("Keycat setup", msg) {
 			if err := a.installCoreFrom(sys); err != nil {
-				winutil.ShowError("Keycat setup", "Copying the engine failed:\n\n"+err.Error())
+				platform.ShowError("Keycat setup", "Copying the engine failed:\n\n"+err.Error())
 				return err
 			}
 			return nil
 		}
 	}
-	msg := "Keycat runs on the Firefox engine, which is not installed yet.\n\nDownload the latest Firefox from mozilla.org (about 70 MB)? Its digital signature is checked before it is used."
-	if !winutil.AskYesNo("Keycat setup", msg) {
+	msg := "Keycat runs on the Firefox engine, which is not installed yet.\n\nDownload the latest Firefox from mozilla.org (under 100 MB)? Mozilla's signature on it is checked before it is used."
+	if !platform.AskYesNo("Keycat setup", msg) {
 		return firefox.ErrNoCore
 	}
 	if err := a.Updater.InstallLatest(a.Settings.Get().UpdateChannel); err != nil {
-		winutil.ShowError("Keycat setup", "Downloading the engine failed:\n\n"+err.Error())
+		platform.ShowError("Keycat setup", "Downloading the engine failed:\n\n"+err.Error())
 		return err
 	}
 	return nil

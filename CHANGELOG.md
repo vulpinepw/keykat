@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.0
+
+- Keycat runs on Linux. The package installs for your user with `install.sh`, adds Keycat to the applications menu, and updates an installed Keycat in place, locking its open profiles first. `uninstall.sh` removes it and keeps your profiles unless you ask.
+- On Linux, profiles are kept in `~/.config/keycat`, and open profiles, the profiles window and the log in `~/.local/state/keycat`.
+- Engine updates on Linux are checked against the checksums Mozilla signs for every release.
+- Passwords from Chrome, Edge and the other Chromium browsers on Linux are imported when Keycat can read them; those whose key is in the system's keyring are counted, with the way to bring them over as a CSV file.
+- Fingerprinting has its own setting: block the scripts known to fingerprint, also blur what other scripts can measure (canvas, fonts, hardware), or resist fingerprinting. Blurring is the default, as it already came with strict tracking protection, and now applies with standard tracking protection too.
+- A profile can tell sites it runs on Windows, macOS or Linux, or a random one of them each time it opens, both in its user agent and to page scripts. It applies to an open profile right away.
+- The Windows installer is now named `KeycatSetup.exe`, so the download link always gives the newest one.
+
 ## 1.1.1
 
 - Locking a profile, or closing its last window, takes you back to the profiles window instead of closing Keycat, and the window comes to the front.

@@ -150,7 +150,7 @@ export const KeycatSettings = {
   addNotes(win) {
     const doc = win.document;
     const notes = {
-      panePrivacy: "Tracking protection, cookies, history, HTTPS-Only, encrypted DNS, fingerprinting protection and default permissions are set in Keycat for this profile.",
+      panePrivacy: "Tracking protection, cookies, history, HTTPS-Only, encrypted DNS, fingerprinting protection, the system shown to sites and default permissions are set in Keycat for this profile.",
       paneSearch: "The default search engine and search suggestions are set in Keycat for this profile.",
     };
     for (const [category, text] of Object.entries(notes)) {

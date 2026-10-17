@@ -1,11 +1,12 @@
-//go:build !windows
+//go:build linux
 
 package vault
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
+
+	"golang.org/x/sys/unix"
 )
 
 func RenameDurable(oldPath, newPath string) error {
@@ -19,6 +20,10 @@ func RenameDurable(oldPath, newPath string) error {
 	return nil
 }
 
-func freeSpace(string) (uint64, error) {
-	return 0, errors.New("free space is not available on this system")
+func freeSpace(path string) (uint64, error) {
+	var st unix.Statfs_t
+	if err := unix.Statfs(path, &st); err != nil {
+		return 0, err
+	}
+	return st.Bavail * uint64(st.Bsize), nil
 }
