@@ -1,5 +1,3 @@
-//go:build windows
-
 package main
 
 import (
@@ -213,6 +211,9 @@ func install(dir string, desktop bool, o options, pr *progress) error {
 		}
 		if err := registerTaskbarID(dir); err != nil {
 			logf("taskbar id: %v", err)
+		}
+		if err := registerBrowser(dir); err != nil {
+			logf("browser registration: %v", err)
 		}
 		exe := filepath.Join(dir, "Keycat.exe")
 		if err := createShortcut(startMenuShortcut(), exe, dir, "Keycat: browser profiles in encrypted vaults"); err != nil {

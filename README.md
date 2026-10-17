@@ -80,6 +80,12 @@ There is also a fake identity per profile (name, e-mail, phone, address) for sig
 
 Keycat has no account, sends no telemetry and shows no ads or recommendations. What still goes online by itself: Mozilla's security blocklists, certificate checks and add-on updates, uBlock Origin's filter lists, the hotspot login check in Balanced profiles, and a check for a newer Firefox engine when Keycat starts (you can turn that one off in Keycat's settings).
 
+### Default browser
+
+Keycat can be your default browser. In Keycat's settings, under Default browser, choose Make default. On Windows that opens Keycat's page in the default apps settings, where you choose Set default (Windows leaves that choice to you). On Linux it is done right away, or you can run `xdg-settings set default-web-browser keycat.desktop`.
+
+A link from another app opens in the profile that is open. When none is, or several are, Keycat asks which profile to use and unlocks it first if it needs to. A setting next to Make default can send every link to one profile instead. Only web pages and files on your computer are taken from other apps.
+
 ## Installing and updating
 
 ### Windows

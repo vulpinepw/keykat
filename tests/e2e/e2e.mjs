@@ -1,7 +1,8 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { Marionette } from "./marionette.mjs";
 
 const root = path.resolve(import.meta.dirname, "..", "..");
@@ -43,6 +44,14 @@ async function api(method, p, body) {
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   return { status: res.status, data: await res.json().catch(() => ({})) };
+}
+
+function passLink(link) {
+  return spawnSync(exe, windows ? ["--url", link] : [link], {
+    env: { ...process.env, KEYCAT_DATA_DIR: dataDir },
+    encoding: "utf8",
+    timeout: 30000,
+  });
 }
 
 async function profileStatus(id) {
@@ -364,6 +373,16 @@ async function main() {
     check("window icon is Keycat's", fs.existsSync(icon) && fs.readFileSync(icon).equals(fs.readFileSync(path.join(root, "browser", "branding", "icons", "default48.png"))));
   }
 
+  const page = path.join(dataDir, "link page.html");
+  fs.writeFileSync(page, "<!doctype html><title>Keycat link</title><p>link");
+  const pageURL = pathToFileURL(page).href;
+  const handOver = passLink(page);
+  const tabWithLink = url => m.exec(`return gBrowser.tabs.some(t => t.linkedBrowser.currentURI.spec === ${JSON.stringify(url)});`);
+  const linkTab = await waitFor(() => tabWithLink(pageURL), 20000, "link tab").catch(() => false);
+  check("a link from another app opens in the open profile", handOver.status === 0 && linkTab, `exit ${handOver.status} ${handOver.stderr || ""}`);
+  const refused = await api("POST", "/api/links", { urls: ["javascript:alert(1)"] });
+  check("links that are not web pages or files are refused", refused.status === 400, `status ${refused.status}`);
+
   await m.exec(`Services.prefs.setStringPref("keycat.test.marker", "survives-encryption"); Services.prefs.savePrefFile(null);`);
   m.close();
 
@@ -384,11 +403,20 @@ async function main() {
   const verify = await api("POST", `/api/profiles/${profile.id}/verify`, { method: "password", password: PASSWORD });
   check("vault verifies end to end", verify.status === 200 && verify.data.ok, `${verify.data.files} files`);
 
-  await api("POST", `/api/profiles/${profile.id}/open`, { method: "password", password: PASSWORD });
+  const otherPage = path.join(dataDir, "second link.html");
+  fs.writeFileSync(otherPage, "<!doctype html><title>Keycat second link</title>");
+  passLink(otherPage);
+  const waiting = await waitFor(async () => (await api("GET", "/api/state")).data.links?.[0], 10000, "waiting link").catch(() => null);
+  check("a link waits while every profile is locked", !!waiting && waiting.url === pathToFileURL(otherPage).href, JSON.stringify(waiting));
+
+  await api("POST", `/api/profiles/${profile.id}/open`, { method: "password", password: PASSWORD, link: waiting?.id });
   await waitFor(async () => (await profileStatus(profile.id))?.pid > 0, 90000, "browser hello (2)");
   m = await connectMarionette();
   const marker = await m.exec(`return Services.prefs.getStringPref("keycat.test.marker", "");`);
   check("data survived seal and unseal", marker === "survives-encryption", marker);
+  const waitedTab = await waitFor(() => m.exec(`return gBrowser.tabs.some(t => t.linkedBrowser.currentURI.spec === ${JSON.stringify(pathToFileURL(otherPage).href)});`), 20000, "waited link").catch(() => false);
+  const left = (await api("GET", "/api/state")).data.links || [];
+  check("the waiting link opens in the profile unlocked with it", waitedTab && left.length === 0, JSON.stringify(left));
   const rescueDir = path.join(dataDir, "Profiles", profile.id, "rescue");
   check("rescue copy of vault and keys kept while the profile is open",
     fs.existsSync(path.join(rescueDir, "rescue.json")) && fs.existsSync(path.join(rescueDir, "vault.kcv")) && fs.existsSync(path.join(rescueDir, "profile.json")));

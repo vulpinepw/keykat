@@ -57,6 +57,11 @@ func (a *App) routes() http.Handler {
 	hub("POST /api/profiles/{id}/restore", a.handleRestore)
 	hub("POST /api/profiles/{id}/import", a.handleImport)
 	hub("POST /api/hub/show", a.handleHubShow)
+	hub("POST /api/links", a.handleLinks)
+	hub("POST /api/links/{id}/open", a.handleLinkOpen)
+	hub("POST /api/links/{id}/dismiss", a.handleLinkDismiss)
+	hub("GET /api/default-browser", a.handleDefaultBrowser)
+	hub("POST /api/default-browser", a.handleMakeDefaultBrowser)
 	hub("POST /api/open-folder", a.handleOpenFolder)
 	hub("POST /api/core/check", a.handleCoreCheck)
 	hub("POST /api/core/update", a.handleCoreUpdate)
@@ -322,6 +327,7 @@ func (a *App) handleState(w http.ResponseWriter, r *http.Request) {
 		"update":   a.Updater.Info(),
 		"profiles": views,
 		"presets":  a.presets(),
+		"links":    a.links.list(),
 	})
 }
 
@@ -517,6 +523,7 @@ func (a *App) handleOpen(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		session.Credentials
 		Then string `json:"then,omitempty"`
+		Link string `json:"link,omitempty"`
 	}
 	if err := decode(r, &req); err != nil {
 		writeErr(w, err)
@@ -530,6 +537,10 @@ func (a *App) handleOpen(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Then == "import" {
 		a.Sessions.Send(id, session.Command{Type: "import"})
+	}
+	if l, ok := a.links.take(req.Link); ok {
+		a.Sessions.Send(id, session.Command{Type: "open", URL: l.URL})
+		a.Bus.Publish("links", a.links.list())
 	}
 	if !wasRunning {
 		a.afterOpen()

@@ -7,9 +7,23 @@ import { restartKeycat, startUpdate } from "./main.js";
 
 export function openSettings(options = {}) {
   let unsubscribe = () => {};
+  let browserStatus = null;
+  const checkBrowser = () => api("GET", "/api/default-browser")
+    .then(status => {
+      browserStatus = status;
+      render();
+    })
+    .catch(() => {});
+  window.addEventListener("focus", checkBrowser);
   const dlg = options.inline
     ? inlinePanel(options.inline, "Keycat settings")
-    : drawer({ label: "Settings", onClose: () => unsubscribe() });
+    : drawer({
+        label: "Settings",
+        onClose: () => {
+          unsubscribe();
+          window.removeEventListener("focus", checkBrowser);
+        },
+      });
   const body = h("div", { class: "drawer-body" });
   mount(dlg.panel,
     h("div", { class: "drawer-head" },
@@ -28,6 +42,41 @@ export function openSettings(options = {}) {
     } catch (err) {
       toast("bad", "Could not save the setting", err.message);
     }
+  }
+
+  async function makeDefault(event) {
+    event.currentTarget.disabled = true;
+    try {
+      browserStatus = await api("POST", "/api/default-browser", {});
+      render();
+    } catch (err) {
+      toast("bad", "Keycat could not be made the default browser", err.message);
+      render();
+    }
+  }
+
+  function defaultBrowserRow(app) {
+    const linux = app.platform === "linux";
+    const s = browserStatus;
+    let title = "Default browser";
+    let hint = "Checking";
+    let button = null;
+    if (s?.isDefault) {
+      title = "Keycat is your default browser";
+      hint = "Links from other apps open in Keycat.";
+    } else if (s && !s.registered) {
+      hint = linux
+        ? "Install Keycat with install.sh to make it your default browser."
+        : "Install Keycat with KeycatSetup.exe to make it your default browser. A portable copy cannot be one.";
+    } else if (s) {
+      hint = linux
+        ? "Links from other apps will open in Keycat."
+        : "Windows opens Keycat's page in its default apps settings. Choose Set default there.";
+      button = h("button", { class: "btn btn-primary btn-sm", type: "button", onclick: makeDefault }, "Make default");
+    }
+    return h("div", { class: "toggle-row" },
+      h("span", { class: "text" }, h("div", { class: "title", text: title }), h("div", { class: "hint", text: hint })),
+      button);
   }
 
   function render() {
@@ -79,9 +128,23 @@ export function openSettings(options = {}) {
         }),
         switchRow({
           title: "Overwrite decrypted files before deleting them",
-          hint: "Best effort on SSDs. Full-disk encryption (BitLocker) is the complete protection.",
+          hint: `Best effort on SSDs. Full-disk encryption (${app.platform === "linux" ? "LUKS" : "BitLocker"}) is the complete protection.`,
           checked: settings.secureWipe,
           onchange: secureWipe => save({ secureWipe }),
+        })
+      ),
+      section("Default browser",
+        defaultBrowserRow(app),
+        selectRow({
+          title: "Links from other apps",
+          hint: "Where a link opens when Keycat is your default browser",
+          value: settings.openLinks,
+          options: [
+            ["auto", "In the open profile, or ask"],
+            ["ask", "Ask every time"],
+            ...store.state.profiles.map(p => [p.id, `Always in ${p.name}`]),
+          ],
+          onchange: openLinks => save({ openLinks }),
         })
       ),
       section("Browser engine",
@@ -146,8 +209,9 @@ export function openSettings(options = {}) {
   }
 
   render();
+  checkBrowser();
   unsubscribe = store.on((state, change) => {
-    if (change.type !== "status") {
+    if (change.type !== "status" && change.type !== "links") {
       render();
     }
   });

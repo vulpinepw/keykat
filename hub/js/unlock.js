@@ -55,7 +55,8 @@ export function openUnlock(id, mode = "open", extra = {}) {
       keychain: "Unlock this profile's password manager without opening the browser. It locks again after 10 minutes.",
       "restore-backup": "Keycat checks the previous vault in full, then puts it back. The current vault becomes the previous one, so you can switch back the same way.",
       "restore-rescue": "Keycat checks the rescue copy in full, then puts it back. The current vault is kept as the previous vault.",
-    }[mode] || (extra.then === "import" ? "After unlocking, the import window opens in the profile." : "");
+    }[mode] || (extra.then === "import" ? "After unlocking, the import window opens in the profile."
+      : extra.link ? "After unlocking, the link opens in this profile." : "");
 
     const altLinks = h("div", { class: "unlock-alt" });
 

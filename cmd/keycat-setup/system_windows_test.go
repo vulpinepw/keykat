@@ -1,5 +1,3 @@
-//go:build windows
-
 package main
 
 import (
@@ -154,6 +152,52 @@ func TestEngineRecordsRemoved(t *testing.T) {
 	}
 	if _, err := os.Stat(theirs); err != nil {
 		t.Error("the real Firefox's blocklist cache was removed")
+	}
+}
+
+func TestBrowserRegistration(t *testing.T) {
+	base := fmt.Sprintf(`Software\KeycatTest-%d`, time.Now().UnixNano())
+	t.Cleanup(func() { deleteTree(base) })
+	dir := filepath.Join(t.TempDir(), "Keycat")
+	exe := filepath.Join(dir, "Keycat.exe")
+	if err := registerBrowserIn(base, dir); err != nil {
+		t.Fatal(err)
+	}
+	read := func(path, name string) string {
+		k, err := registry.OpenKey(registry.CURRENT_USER, base+`\`+path, registry.QUERY_VALUE)
+		if err != nil {
+			return ""
+		}
+		defer k.Close()
+		v, _, _ := k.GetStringValue(name)
+		return v
+	}
+	if got := read(`Classes\KeycatURL\shell\open\command`, ""); got != `"`+exe+`" --url "%1"` {
+		t.Errorf("link command = %q", got)
+	}
+	if got := read(`Classes\KeycatHTML\shell\open\command`, ""); got != `"`+exe+`" --url "%1"` {
+		t.Errorf("page command = %q", got)
+	}
+	for _, scheme := range []string{"http", "https"} {
+		if got := read(`Clients\StartMenuInternet\Keycat\Capabilities\URLAssociations`, scheme); got != "KeycatURL" {
+			t.Errorf("%s = %q", scheme, got)
+		}
+	}
+	if got := read(`Clients\StartMenuInternet\Keycat\Capabilities\FileAssociations`, ".html"); got != "KeycatHTML" {
+		t.Errorf(".html = %q", got)
+	}
+	if got := read(`RegisteredApplications`, "Keycat"); got != `Software\Clients\StartMenuInternet\Keycat\Capabilities` {
+		t.Errorf("registered application = %q", got)
+	}
+	unregisterBrowserIn(base)
+	for _, path := range []string{`Classes\KeycatURL`, `Classes\KeycatHTML`, `Clients\StartMenuInternet\Keycat`} {
+		if k, err := registry.OpenKey(registry.CURRENT_USER, base+`\`+path, registry.QUERY_VALUE); err == nil {
+			k.Close()
+			t.Errorf("%s kept after unregistering", path)
+		}
+	}
+	if read(`RegisteredApplications`, "Keycat") != "" {
+		t.Error("registered application kept after unregistering")
 	}
 }
 

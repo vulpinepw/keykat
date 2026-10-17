@@ -1,5 +1,3 @@
-//go:build windows
-
 package main
 
 import (
@@ -371,6 +369,81 @@ func deleteTree(path string) {
 		deleteTree(path + `\` + s)
 	}
 	_ = registry.DeleteKey(registry.CURRENT_USER, path)
+}
+
+const (
+	browserURLClass  = "KeycatURL"
+	browserHTMLClass = "KeycatHTML"
+	browserClient    = `Clients\StartMenuInternet\Keycat`
+)
+
+var browserFileTypes = []string{".htm", ".html", ".shtml", ".xht", ".xhtml"}
+
+var procSHChangeNotify = windows.NewLazySystemDLL("shell32.dll").NewProc("SHChangeNotify")
+
+const shcneAssocChanged = 0x08000000
+
+func registerBrowser(dir string) error { return registerBrowserIn(`Software`, dir) }
+
+func unregisterBrowser() { unregisterBrowserIn(`Software`) }
+
+func registerBrowserIn(base, dir string) error {
+	exe := filepath.Join(dir, "Keycat.exe")
+	icon := exe + ",0"
+	open := `"` + exe + `" --url "%1"`
+	files := map[string]string{}
+	for _, ext := range browserFileTypes {
+		files[ext] = browserHTMLClass
+	}
+	keys := map[string]map[string]string{
+		`Classes\` + browserURLClass:          {"": "Keycat Link", "FriendlyTypeName": "Keycat Link", "URL Protocol": ""},
+		`Classes\` + browserHTMLClass:         {"": "Keycat HTML Document", "FriendlyTypeName": "Keycat HTML Document"},
+		browserClient:                         {"": "Keycat"},
+		browserClient + `\DefaultIcon`:        {"": icon},
+		browserClient + `\shell\open\command`: {"": `"` + exe + `"`},
+		browserClient + `\Capabilities`: {
+			"ApplicationName":        "Keycat",
+			"ApplicationDescription": "Browser profiles sealed in encrypted vaults",
+			"ApplicationIcon":        icon,
+		},
+		browserClient + `\Capabilities\StartMenu`:        {"StartMenuInternet": "Keycat"},
+		browserClient + `\Capabilities\URLAssociations`:  {"http": browserURLClass, "https": browserURLClass},
+		browserClient + `\Capabilities\FileAssociations`: files,
+		`RegisteredApplications`:                         {"Keycat": `Software\` + browserClient + `\Capabilities`},
+	}
+	for _, class := range []string{browserURLClass, browserHTMLClass} {
+		keys[`Classes\`+class+`\DefaultIcon`] = map[string]string{"": icon}
+		keys[`Classes\`+class+`\shell\open\command`] = map[string]string{"": open}
+		keys[`Classes\`+class+`\Application`] = map[string]string{
+			"ApplicationName": "Keycat", "ApplicationIcon": icon, "ApplicationCompany": "tordev", "AppUserModelId": keycatAUMID,
+		}
+	}
+	for path, values := range keys {
+		k, _, err := registry.CreateKey(registry.CURRENT_USER, base+`\`+path, registry.SET_VALUE)
+		if err != nil {
+			return err
+		}
+		for name, v := range values {
+			if err := k.SetStringValue(name, v); err != nil {
+				k.Close()
+				return err
+			}
+		}
+		k.Close()
+	}
+	procSHChangeNotify.Call(shcneAssocChanged, 0, 0, 0)
+	return nil
+}
+
+func unregisterBrowserIn(base string) {
+	deleteTree(base + `\Classes\` + browserURLClass)
+	deleteTree(base + `\Classes\` + browserHTMLClass)
+	deleteTree(base + `\` + browserClient)
+	if k, err := registry.OpenKey(registry.CURRENT_USER, base+`\RegisteredApplications`, registry.SET_VALUE); err == nil {
+		_ = k.DeleteValue("Keycat")
+		k.Close()
+	}
+	procSHChangeNotify.Call(shcneAssocChanged, 0, 0, 0)
 }
 
 func installed() (dir, ver string) {

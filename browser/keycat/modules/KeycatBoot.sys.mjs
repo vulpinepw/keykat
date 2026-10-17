@@ -203,6 +203,33 @@ export const KeycatBoot = {
     }
   },
 
+  async openLink(url) {
+    let uri;
+    try {
+      uri = Services.io.newURI(url);
+    } catch {
+      return;
+    }
+    if (!["http", "https", "file"].includes(uri.scheme)) {
+      return;
+    }
+    for (let i = 0; i < 100 && !this.started; i++) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    const win = Services.wm.getMostRecentWindow("navigator:browser");
+    if (!win) {
+      return;
+    }
+    const gBrowser = win.gBrowser;
+    const startPage = ["about:newtab", "about:home", "about:blank", "about:privatebrowsing"];
+    const empty = gBrowser.tabs.length === 1 && startPage.includes(gBrowser.selectedBrowser.currentURI.spec);
+    win.openTrustedLinkIn(uri.spec, empty ? "current" : "tab", { inBackground: false });
+    if (win.windowState === win.STATE_MINIMIZED) {
+      win.restore();
+    }
+    win.focus();
+  },
+
   onWindow(win) {
     if (!this.watchingQuit && this.mode === "profile") {
       this.watchingQuit = true;
@@ -276,6 +303,11 @@ export const KeycatBoot = {
       case "import":
         if (this.mode === "profile") {
           lazy.KeycatImport.open().catch(ex => console.error("Keycat import:", ex));
+        }
+        break;
+      case "open":
+        if (this.mode === "profile") {
+          this.openLink(cmd.url).catch(ex => console.error("Keycat link:", ex));
         }
         break;
       case "settings":

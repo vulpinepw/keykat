@@ -1,5 +1,3 @@
-//go:build linux
-
 package platform
 
 import (
@@ -66,6 +64,53 @@ func message(kind, title, text string) bool {
 func isTerminal(f *os.File) bool {
 	_, err := unix.IoctlGetTermios(int(f.Fd()), unix.TCGETS)
 	return err == nil
+}
+
+func desktopEntry() string {
+	data := os.Getenv("XDG_DATA_HOME")
+	if !filepath.IsAbs(data) {
+		home, _ := os.UserHomeDir()
+		data = filepath.Join(home, ".local", "share")
+	}
+	return filepath.Join(data, "applications", "keycat.desktop")
+}
+
+func DefaultBrowser(exe string) (registered, isDefault bool) {
+	if entry, err := os.ReadFile(desktopEntry()); err == nil {
+		for _, line := range strings.Split(string(entry), "\n") {
+			if command, ok := strings.CutPrefix(line, "Exec="); ok {
+				registered = samePath(execProgram(command), exe) && strings.Contains(string(entry), "x-scheme-handler/https")
+			}
+		}
+	}
+	out, err := exec.Command("xdg-settings", "get", "default-web-browser").Output()
+	return registered, err == nil && strings.TrimSpace(string(out)) == "keycat.desktop"
+}
+
+func execProgram(command string) string {
+	command = strings.TrimSpace(command)
+	if rest, ok := strings.CutPrefix(command, `"`); ok {
+		program, _, _ := strings.Cut(rest, `"`)
+		return program
+	}
+	program, _, _ := strings.Cut(command, " ")
+	return program
+}
+
+func samePath(a, b string) bool {
+	ra, errA := filepath.EvalSymlinks(a)
+	rb, errB := filepath.EvalSymlinks(b)
+	return errA == nil && errB == nil && ra == rb
+}
+
+func MakeDefaultBrowser(exe string) error {
+	if registered, _ := DefaultBrowser(exe); !registered {
+		return errors.New("This copy of Keycat is not installed. Install Keycat with install.sh to make it your default browser.")
+	}
+	if out, err := exec.Command("xdg-settings", "set", "default-web-browser", "keycat.desktop").CombinedOutput(); err != nil {
+		return fmt.Errorf("xdg-settings could not set the default browser: %v %s", err, strings.TrimSpace(string(out)))
+	}
+	return nil
 }
 
 func OpenFolder(path string, selectFile bool) error {

@@ -1,16 +1,17 @@
-//go:build windows
-
 package platform
 
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"os/exec"
+	"strings"
 	"sync"
 	"syscall"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/registry"
 )
 
 var (
@@ -143,6 +144,37 @@ func ShowError(title, text string) { messageBox(title, text, mbIconErr) }
 func ShowInfo(title, text string) { messageBox(title, text, mbIconInfo) }
 
 func AskYesNo(title, text string) bool { return messageBox(title, text, mbIconWarn|mbYesNo) == idYes }
+
+const browserProgID = "KeycatURL"
+
+func DefaultBrowser(exe string) (registered, isDefault bool) {
+	if k, err := registry.OpenKey(registry.CURRENT_USER, `Software\Classes\`+browserProgID+`\shell\open\command`, registry.QUERY_VALUE); err == nil {
+		command, _, _ := k.GetStringValue("")
+		k.Close()
+		registered = strings.Contains(strings.ToLower(command), strings.ToLower(exe))
+	}
+	for _, scheme := range []string{"http", "https"} {
+		k, err := registry.OpenKey(registry.CURRENT_USER, `Software\Microsoft\Windows\Shell\Associations\UrlAssociations\`+scheme+`\UserChoice`, registry.QUERY_VALUE)
+		if err != nil {
+			return registered, false
+		}
+		id, _, _ := k.GetStringValue("ProgId")
+		k.Close()
+		if id != browserProgID {
+			return registered, false
+		}
+	}
+	return registered, true
+}
+
+func MakeDefaultBrowser(exe string) error {
+	if registered, _ := DefaultBrowser(exe); !registered {
+		return errors.New("This copy of Keycat is not installed. Install Keycat with KeycatSetup.exe to make it your default browser.")
+	}
+	verb, _ := windows.UTF16PtrFromString("open")
+	page, _ := windows.UTF16PtrFromString("ms-settings:defaultapps?registeredAppUser=Keycat")
+	return windows.ShellExecute(0, verb, page, nil, nil, windows.SW_SHOWNORMAL)
+}
 
 func OpenFolder(path string, selectFile bool) error {
 	if selectFile {

@@ -12,7 +12,7 @@ Needs Go; node, when there is one, checks the stripped JavaScript.
 EOF
 }
 
-version=1.2.0
+version=1.3.0
 firefox=
 tests=yes
 while [ $# -gt 0 ]; do

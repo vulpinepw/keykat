@@ -77,10 +77,11 @@ type Settings struct {
 	UpdateChannel string `json:"updateChannel"`
 	CheckUpdates  bool   `json:"checkUpdates"`
 	Onboarded     bool   `json:"onboarded"`
+	OpenLinks     string `json:"openLinks"`
 }
 
 func DefaultSettings() Settings {
-	return Settings{Version: settingsVersion, Theme: "dark", AfterOpen: "close", SecureWipe: true, UpdateChannel: "release", CheckUpdates: true}
+	return Settings{Version: settingsVersion, Theme: "dark", AfterOpen: "close", SecureWipe: true, UpdateChannel: "release", CheckUpdates: true, OpenLinks: "auto"}
 }
 
 func (s *Settings) Validate() error {
@@ -98,6 +99,9 @@ func (s *Settings) Validate() error {
 	case "release", "esr":
 	default:
 		return errors.New("updateChannel must be release or esr")
+	}
+	if !validOpenLinks(s.OpenLinks) {
+		return errors.New("openLinks must be auto, ask or a profile")
 	}
 	return nil
 }

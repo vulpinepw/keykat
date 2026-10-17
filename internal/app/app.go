@@ -35,6 +35,7 @@ type Options struct {
 	Headless   bool
 	NoHub      bool
 	Marionette bool
+	Links      []string
 }
 
 type App struct {
@@ -56,6 +57,8 @@ type App struct {
 
 	returnPending atomic.Bool
 	quitting      atomic.Bool
+
+	links linkQueue
 
 	server  *http.Server
 	baseURL string
@@ -194,6 +197,11 @@ func (a *App) Run() error {
 			a.shutdown()
 		}
 	}
+	if len(a.Options.Links) > 0 {
+		if err := a.ReceiveLinks(a.Options.Links); err != nil {
+			a.log.Printf("links: %v", err)
+		}
+	}
 	<-a.done
 	return nil
 }
@@ -208,7 +216,12 @@ func (a *App) forwardToRunning() error {
 		return err
 	}
 	platform.AllowAnyForeground()
-	req, _ := http.NewRequest("POST", info.URL+"/api/hub/show", bytes.NewReader([]byte("{}")))
+	path, body := "/api/hub/show", []byte("{}")
+	if len(a.Options.Links) > 0 {
+		path = "/api/links"
+		body, _ = json.Marshal(map[string][]string{"urls": a.Options.Links})
+	}
+	req, _ := http.NewRequest("POST", info.URL+path, bytes.NewReader(body))
 	req.Header.Set("Authorization", "Bearer "+info.Token)
 	req.Header.Set("Content-Type", "application/json")
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -216,8 +229,40 @@ func (a *App) forwardToRunning() error {
 	if err != nil {
 		return err
 	}
-	resp.Body.Close()
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		var reply struct {
+			Error string `json:"error"`
+		}
+		_ = json.NewDecoder(io.LimitReader(resp.Body, 1<<16)).Decode(&reply)
+		if reply.Error == "" {
+			reply.Error = resp.Status
+		}
+		return errors.New(reply.Error)
+	}
 	return nil
+}
+
+func LinksFromCommandLine(urlFlag string, args []string, otherFlags int) ([]string, error) {
+	links := args
+	if urlFlag != "" {
+		if len(args) > 0 {
+			return nil, errors.New("--url takes a single link")
+		}
+		links = []string{urlFlag}
+	}
+	if len(links) == 0 {
+		return nil, nil
+	}
+	if otherFlags > 0 {
+		return nil, errors.New("a link cannot come with other options")
+	}
+	for _, l := range links {
+		if _, err := ParseLink(l); err != nil {
+			return nil, fmt.Errorf("Keycat cannot open %q: %w", l, err)
+		}
+	}
+	return links, nil
 }
 
 func QuitRunning(timeout time.Duration, status func(string)) (bool, error) {

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.0
+
+- Keycat can be your default browser. The installer registers it with Windows and `install.sh` with the Linux desktop; Make default in Keycat's settings does the rest.
+- A link from another app opens in the profile that is open. When none is, or several are, Keycat asks which profile to use and unlocks it first. A setting can send every link to one profile.
+- Only web pages and files on your computer are taken from other apps; a link never comes with other options.
+
 ## 1.2.0
 
 - Keycat runs on Linux. The package installs for your user with `install.sh`, adds Keycat to the applications menu, and updates an installed Keycat in place, locking its open profiles first. `uninstall.sh` removes it and keeps your profiles unless you ask.

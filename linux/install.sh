@@ -12,6 +12,8 @@ Installs Keycat for your user account, or updates the Keycat already there:
 
 Your profiles stay in ~/.config/keycat; updating does not change them.
 Keycat opens when it is installed, unless you add --no-launch.
+To make it your default browser, choose Make default in Keycat's settings,
+or run: xdg-settings set default-web-browser keycat.desktop
 To remove it, run ~/.local/share/keycat/uninstall.sh
 EOF
 }
@@ -81,6 +83,10 @@ fi
 mv "$dest.new" "$dest"
 rm -rf "$dest.old"
 
+program=$dest/keycat
+case $program in
+*[[:space:]]*) program="\"$program\"" ;;
+esac
 mkdir -p "$share/applications"
 cat >"$share/applications/keycat.desktop" <<EOF
 [Desktop Entry]
@@ -88,15 +94,19 @@ Type=Application
 Name=Keycat
 GenericName=Web Browser
 Comment=Browser profiles sealed in encrypted vaults
-Exec="$dest/keycat"
+Exec=$program %u
 TryExec=$dest/keycat
 Icon=keycat
 Terminal=false
 Categories=Network;WebBrowser;
+MimeType=text/html;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;
 Keywords=browser;privacy;profiles;vault;passwords;
 StartupNotify=true
 StartupWMClass=Keycat
 EOF
+if command -v update-desktop-database >/dev/null 2>&1; then
+	update-desktop-database -q "$share/applications" || true
+fi
 
 for size in 16 24 32 48 64 128 256 512; do
 	mkdir -p "$share/icons/hicolor/${size}x$size/apps"

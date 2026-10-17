@@ -54,6 +54,9 @@ if [ "$delete_data" = ask ]; then
 fi
 
 rm -f "$share/applications/keycat.desktop"
+if command -v update-desktop-database >/dev/null 2>&1; then
+	update-desktop-database -q "$share/applications" || true
+fi
 for size in 16 24 32 48 64 128 256 512; do
 	rm -f "$share/icons/hicolor/${size}x$size/apps/keycat.png"
 done

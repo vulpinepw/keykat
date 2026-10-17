@@ -1,5 +1,3 @@
-//go:build windows
-
 package main
 
 import (
@@ -27,6 +25,7 @@ func uninstall(dir string, deleteData bool, o options) error {
 			logf("unregister: %v", err)
 		}
 		unregisterTaskbarID(dir)
+		unregisterBrowser()
 		removeEngineRegistrations(dir)
 		removeEngineRecords(dir)
 	}

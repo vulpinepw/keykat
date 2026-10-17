@@ -1198,6 +1198,61 @@ h3 {
   flex: 1;
 }
 
+
+.link-url {
+  overflow-wrap: anywhere;
+}
+
+.link-profiles {
+  display: grid;
+  gap: 6px;
+}
+
+.link-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--tile);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--motion-fast) ease-out;
+}
+
+.link-profile:not(:disabled):hover {
+  background: color-mix(in srgb, var(--tile), var(--accent) 17%);
+}
+
+.link-profile:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.link-profile .name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.link-profile .state {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
 .unlock-head {
   display: grid;
   justify-items: center;

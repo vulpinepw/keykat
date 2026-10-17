@@ -24,7 +24,19 @@ func main() {
 	waitPID := flag.Int("wait-pid", 0, "wait for this process to exit before starting (used when Keycat restarts itself)")
 	quit := flag.Bool("quit", false, "close a running Keycat, locking its open profiles first, and exit")
 	showVersion := flag.Bool("version", false, "print the version of Keycat and exit")
+	openURL := flag.String("url", "", "open this `link` in Keycat (how Windows passes links to the default browser; Linux passes them as plain arguments)")
 	flag.Parse()
+
+	otherFlags := 0
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name != "url" {
+			otherFlags++
+		}
+	})
+	links, err := app.LinksFromCommandLine(*openURL, flag.Args(), otherFlags)
+	if err != nil {
+		fail(app.Options{}, err)
+	}
 
 	if *showVersion {
 		fmt.Println(version)
@@ -48,7 +60,7 @@ func main() {
 		}
 	}
 
-	opts := app.Options{Version: version, Headless: *headless, NoHub: *noHub, Marionette: *marionette}
+	opts := app.Options{Version: version, Headless: *headless, NoHub: *noHub, Marionette: *marionette, Links: links}
 	hub := keycat.HubFS()
 	if dir := os.Getenv("KEYCAT_HUB_DIR"); dir != "" {
 		hub = os.DirFS(dir)

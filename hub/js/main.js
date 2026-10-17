@@ -8,6 +8,7 @@ import { openEditor } from "./editor.js";
 import { openSettings } from "./settings.js";
 import { securityLine } from "./views.js";
 import { unlockProgress } from "./snake.js";
+import { askForLinks } from "./links.js";
 
 const root = document.getElementById("app");
 const cards = new Map();
@@ -499,6 +500,12 @@ function boot() {
     if (change.type === "keychain") {
       return;
     }
+    if (change.type === "links") {
+      if (!inBrowser) {
+        askForLinks();
+      }
+      return;
+    }
     notifyTransitions(state);
     if (embed === "profile" || embed === "settings") {
       if (!embeddedShown) {
@@ -515,6 +522,9 @@ function boot() {
     if (first) {
       first = false;
       openFromHash();
+    }
+    if (!inBrowser) {
+      askForLinks();
     }
   });
   window.addEventListener("hashchange", () => openFromHash());
@@ -536,6 +546,10 @@ function boot() {
         break;
       case "keychain":
         store.emit({ type: "keychain", id: event.data?.profileId });
+        break;
+      case "links":
+        store.state.links = event.data || [];
+        store.emit({ type: "links" });
         break;
     }
   }, () => refresh().catch(() => {}));

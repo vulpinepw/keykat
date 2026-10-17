@@ -49,6 +49,7 @@ type Status struct {
 type Command struct {
 	Type   string                 `json:"type"`
 	Theme  string                 `json:"theme,omitempty"`
+	URL    string                 `json:"url,omitempty"`
 	Config *profile.BrowserConfig `json:"config,omitempty"`
 	Prefs  map[string]any         `json:"prefs,omitempty"`
 	Reset  []string               `json:"reset,omitempty"`
@@ -179,6 +180,18 @@ func (m *Manager) ActiveCount() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return len(m.sessions) + len(m.busy)
+}
+
+func (m *Manager) Running() []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var ids []string
+	for id, st := range m.status {
+		if st.State == StateRunning {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }
 
 func (m *Manager) OpenCount() int {
